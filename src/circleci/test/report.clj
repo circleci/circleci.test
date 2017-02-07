@@ -1,4 +1,5 @@
-;; This is all copied from clojure.test
+;; Portions copied from clojure.test
+
 (ns circleci.test.report
   (:require [clojure.stacktrace :as stack]
             [clojure.test :as test]))
@@ -21,57 +22,108 @@
   (apply str (interpose " " (reverse test/*testing-contexts*))))
 
 
+(defprotocol TestReporter
+  (default [this m])
+  (pass [this m])
+  (fail [this m])
+  (error [this m])
+  (summary [this m])
+  (begin-test-ns [this m])
+  (end-test-ns [this m])
+  (begin-test-var [this m])
+  (end-test-var [this m]))
+
+(deftype ConsoleReporter []
+  TestReporter
+  (default [this m]
+    (test/with-test-out (prn m)))
+
+  (pass [this m]
+    (test/with-test-out (test/inc-report-counter :pass)))
+
+  (fail [this m]
+    (test/with-test-out
+      (test/inc-report-counter :fail)
+      (println "\nFAIL in" (testing-vars-str m))
+      (when (seq test/*testing-contexts*) (println (testing-contexts-str)))
+      (when-let [message (:message m)] (println message))
+      (println "expected:" (pr-str (:expected m)))
+      (println "  actual:" (pr-str (:actual m)))))
+
+  (error [this m]
+    (test/with-test-out
+      (test/inc-report-counter :error)
+      (println "\nERROR in" (testing-vars-str m))
+      (when (seq test/*testing-contexts*) (println (testing-contexts-str)))
+      (when-let [message (:message m)] (println message))
+      (println "expected:" (pr-str (:expected m)))
+      (print "  actual: ")
+      (let [actual (:actual m)]
+        (if (instance? Throwable actual)
+          (stack/print-cause-trace actual test/*stack-trace-depth*)
+          (prn actual)))))
+
+  (summary [this m]
+    (test/with-test-out
+      (println "\nRan" (:test m) "tests containing"
+               (+ (:pass m) (:fail m) (:error m)) "assertions.")
+      (println (:fail m) "failures," (:error m) "errors.")))
+
+  (begin-test-ns [this m]
+    (test/with-test-out
+      (println "\nTesting" (ns-name (:ns m)))))
+
+  ;; Ignore these message types:
+  (end-test-ns [this m])
+  (begin-test-var [this m])
+  (end-test-var [this m]))
+
+(def ^:dynamic *reporters* [(->ConsoleReporter)])
+
 ;; Test result reporting
 (defmulti
-  ^{:doc "Generic reporting function, may be overridden to plug in
-   different report formats (e.g., TAP, JUnit).  Assertions such as
-   'is' call 'report' to indicate results.  The argument given to
-   'report' will be a map with a :type key.  See the documentation at
-   the top of test_is.clj for more information on the types of
-   arguments for 'report'."
-     :dynamic true
-     :added "1.1"}
+  ^{:doc "Reporting function that supports multiple reporting backends for
+   different output formats. To override the default console reporter bind
+   '*reporters*' to a seq of 'TestReporter' implementations.
+   Assertions such as 'is' call 'report' to indicate results.  The argument
+   given to 'report' will be a map with a :type key.  See the documentation at
+    the top of test_is.clj for more information on the types of
+    arguments for 'report'."
+     :dynamic true}
   report :type)
 
 (defmethod report :default [m]
-  (test/with-test-out (prn m)))
+  (doseq [reporter *reporters*]
+    (default reporter m)))
 
 (defmethod report :pass [m]
-  (test/with-test-out (test/inc-report-counter :pass)))
+  (doseq [reporter *reporters*]
+    (pass reporter m)))
 
 (defmethod report :fail [m]
-  (test/with-test-out
-    (test/inc-report-counter :fail)
-    (println "\nFAIL in" (testing-vars-str m))
-    (when (seq test/*testing-contexts*) (println (testing-contexts-str)))
-    (when-let [message (:message m)] (println message))
-    (println "expected:" (pr-str (:expected m)))
-    (println "  actual:" (pr-str (:actual m)))))
+  (doseq [reporter *reporters*]
+    (fail reporter m)))
 
 (defmethod report :error [m]
-  (test/with-test-out
-   (test/inc-report-counter :error)
-   (println "\nERROR in" (testing-vars-str m))
-   (when (seq test/*testing-contexts*) (println (testing-contexts-str)))
-   (when-let [message (:message m)] (println message))
-   (println "expected:" (pr-str (:expected m)))
-   (print "  actual: ")
-   (let [actual (:actual m)]
-     (if (instance? Throwable actual)
-       (stack/print-cause-trace actual test/*stack-trace-depth*)
-       (prn actual)))))
+  (doseq [reporter *reporters*]
+    (error reporter m)))
 
 (defmethod report :summary [m]
-  (test/with-test-out
-   (println "\nRan" (:test m) "tests containing"
-            (+ (:pass m) (:fail m) (:error m)) "assertions.")
-   (println (:fail m) "failures," (:error m) "errors.")))
+  (doseq [reporter *reporters*]
+    (summary reporter m)))
 
 (defmethod report :begin-test-ns [m]
-  (test/with-test-out
-   (println "\nTesting" (ns-name (:ns m)))))
+  (doseq [reporter *reporters*]
+    (begin-test-ns reporter m)))
 
-;; Ignore these message types:
-(defmethod report :end-test-ns [m])
-(defmethod report :begin-test-var [m])
-(defmethod report :end-test-var [m])
+(defmethod report :end-test-ns [m]
+  (doseq [reporter *reporters*]
+    (end-test-ns reporter m)))
+
+(defmethod report :begin-test-var [m]
+  (doseq [reporter *reporters*]
+    (begin-test-var reporter m)))
+
+(defmethod report :end-test-var [m]
+  (doseq [reporter *reporters*]
+    (end-test-var reporter m)))
