@@ -27,14 +27,14 @@
             (each-fixture-fn (fn [] (test* v)))
             (catch Throwable e
               (test/do-report {:type :error,
-                                 :message "Uncaught exception, not in assertion."
-                                 :expected nil, :actual e}))
+                               :message "Uncaught exception, not in assertion."
+                               :expected nil, :actual e}))
             (finally
               (let [stop-time (System/nanoTime)
                     elapsed (-> stop-time (- start-time) nanos->seconds)]
                 (test/do-report {:type :end-test-var,
-                                   :var v
-                                   :elapsed elapsed})))))))))
+                                 :var v
+                                 :elapsed elapsed})))))))))
 
 (defn test-all-vars
   [ns]
