@@ -1,0 +1,58 @@
+version: 2.0
+executorType: docker
+containerInfo:
+  - image: clojure:lein-2.7.1
+
+jobs:
+  build:
+    parallel: 1
+    workDir: ~/circleci.test
+    steps:
+      - type: checkout
+
+      - type: cache-restore
+        # always restore the latest cache
+        key: v1-jars-
+
+      - type: shell
+        command: lein deps
+
+      - type: shell
+        name: Unit tests
+        command: |
+          set -exu
+          lein run -m circleci.test circleci.test-test
+
+      - type: cache-save
+        key: v1-jars-{{ checksum "project.clj" }}
+        paths:
+          - ~/.m2
+
+      - type: shell
+        name: maybe deploy
+        command: |
+          if [[ "${CIRCLE_BRANCH}" == "master" ]]
+          then
+              # production is a fake branch
+              curl -u ${CIRCLE_API_TOKEN}: \
+                   -d revision=${CIRCLE_SHA1}  \
+                   -d build_parameters[CIRCLE_STAGE]=deploy \
+                   https://circleci.com/api/v1.1/project/github/circleci/circleci.test/tree/${CIRCLE_BRANCH}
+           else
+              echo not deploying
+           fi
+
+  deploy:
+    workDir: ~/circleci.test
+    steps:
+      - type: checkout
+
+      - type: cache-restore
+        key: v1-jars-
+
+      - type: shell
+        name: Push jars
+        command: |
+          set -exu
+          lein version-spec
+          lein deploy circle-s3
