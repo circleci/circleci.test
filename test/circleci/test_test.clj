@@ -17,7 +17,8 @@
 
 (ns circleci.test-test
   (:use circleci.test)
-  (:require [clojure.stacktrace :as stack]))
+  (:require [clojure.stacktrace :as stack]
+            [clojure.test :refer (deftest testing is are)]))
 
 (deftest can-test-symbol
   (let [x true]
@@ -77,7 +78,7 @@
   (let [empty-stack (into-array (Class/forName "java.lang.StackTraceElement")
                                 [])
         t (doto (Exception.) (.setStackTrace empty-stack))]
-    (is (map? (#'circleci.test.report/stacktrace-file-and-line empty-stack)) "Should pass")
+    (is (map? (#'clojure.test/stacktrace-file-and-line empty-stack)) "Should pass")
     (is (string? (with-out-str (stack/print-stack-trace t))) "Should pass")))
 
 (deftest #^{:has-meta true} can-add-metadata-to-tests
@@ -119,10 +120,10 @@
 ;; namespace.
 (defn test-ns-hook []
   (binding [original-report circleci.test.report/report
-            circleci.test.report/report custom-report]
+            clojure.test/report custom-report]
     (test-all-vars (find-ns 'circleci.test-test))))
 
 (deftest clj-1588-symbols-in-are-isolated-from-test-clauses
-  (binding [circleci.test.report/report original-report]
+  (binding [clojure.test/report original-report]
     (are [x y] (= x y)
       ((fn [x] (inc x)) 1) 2)))
