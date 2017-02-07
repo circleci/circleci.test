@@ -119,7 +119,7 @@
 ;; test-ns-hook will be used by test/test-ns to run tests in this
 ;; namespace.
 (defn test-ns-hook []
-  (binding [original-report circleci.test.report/report
+  (binding [original-report clojure.test/report
             clojure.test/report custom-report]
     (test-all-vars (find-ns 'circleci.test-test))))
 

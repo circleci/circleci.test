@@ -54,7 +54,8 @@
   *initial-report-counters*.  Returns the final, dereferenced state of
   *report-counters*."
   [ns]
-  (binding [test/*report-counters* (ref test/*initial-report-counters*)]
+  (binding [test/*report-counters* (ref test/*initial-report-counters*)
+            test/report report/report]
     (let [ns-obj (the-ns ns)]
       (test/do-report {:type :begin-test-ns, :ns ns-obj})
       ;; If the namespace has a test-ns-hook function, call that:
@@ -74,11 +75,10 @@
   summarizing test results."
   ([] (run-tests *ns*))
   ([& namespaces]
-    (binding [test/report report/report]
-      (let [summary (assoc (apply merge-with + (map test-ns namespaces))
-                           :type :summary)]
-        (test/do-report summary)
-        summary))))
+    (let [summary (assoc (apply merge-with + (map test-ns namespaces))
+                         :type :summary)]
+      (test/do-report summary)
+      summary)))
 
 (defn run-all-tests
   "Runs all tests in all namespaces; prints results.
