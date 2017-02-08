@@ -12,7 +12,6 @@
   [v]
   (when-let [t (:test (meta v))]
     (test/do-report {:type :begin-test-var, :var v})
-    (test/inc-report-counter :test)
     (t)))
 
 (defn test-var

@@ -73,9 +73,12 @@
     (test/with-test-out
       (println "\nTesting" (ns-name (:ns m)))))
 
-  ;; Ignore these message types:
   (end-test-ns [this m])
-  (begin-test-var [this m])
+
+  (begin-test-var [this m]
+    (test/with-test-out
+      (test/inc-report-counter :test)))
+
   (end-test-var [this m]))
 
 (def ^:dynamic *reporters* [(->ClojureDotTestReporter)])
