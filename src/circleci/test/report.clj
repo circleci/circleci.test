@@ -33,7 +33,7 @@
   (begin-test-var [this m])
   (end-test-var [this m]))
 
-(deftype ConsoleReporter []
+(deftype ClojureDotTestReporter []
   TestReporter
   (default [this m]
     (test/with-test-out (prn m)))
@@ -78,7 +78,7 @@
   (begin-test-var [this m])
   (end-test-var [this m]))
 
-(def ^:dynamic *reporters* [(->ConsoleReporter)])
+(def ^:dynamic *reporters* [(->ClojureDotTestReporter)])
 
 ;; Test result reporting
 (defmulti
