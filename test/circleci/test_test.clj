@@ -18,6 +18,7 @@
 (ns circleci.test-test
   (:use circleci.test)
   (:require [clojure.stacktrace :as stack]
+            [circleci.test.report :as report]
             [clojure.test :refer (deftest testing is are)]))
 
 (deftest can-test-symbol
@@ -120,7 +121,7 @@
 ;; namespace.
 (defn test-ns-hook []
   (binding [original-report clojure.test/report
-            clojure.test/report custom-report]
+            report/report custom-report]
     (test-all-vars (find-ns 'circleci.test-test))))
 
 (deftest clj-1588-symbols-in-are-isolated-from-test-clauses

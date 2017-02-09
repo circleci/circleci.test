@@ -39,7 +39,11 @@
   [v]
   ;; Make sure calling any nested test fns invokes _our_ test-var, not
   ;; clojure.test's
-  (binding [test/test-var test-var*]
+  ;;
+  ;; Also need to rebind test/report here since test-ns and test-var are
+  ;; entrypoints into the test runner
+  (binding [test/test-var test-var*
+            test/report report/report]
     (test-var* v)))
 
 (defn test-all-vars
