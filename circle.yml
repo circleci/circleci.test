@@ -21,7 +21,7 @@ jobs:
         name: Unit tests
         command: |
           set -exu
-          lein run -m circleci.test circleci.test-test
+          lein run -m circleci.test circleci.test-test circleci.test.test-report
 
       - type: cache-save
         key: v1-jars-{{ checksum "project.clj" }}
