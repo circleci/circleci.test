@@ -127,3 +127,21 @@
   (binding [clojure.test/report original-report]
     (are [x y] (= x y)
       ((fn [x] (inc x)) 1) 2)))
+
+(deftest dummy-test
+  (is 1 "Should pass"))
+
+(defn tracking-report
+  [reports]
+  (fn [data]
+    (swap! reports conj data)))
+
+(deftest nested-test-invocations-use-correct-test-var
+  (let [reports (atom [])]
+    (binding [clojure.test/report (tracking-report reports)]
+      (dummy-test))
+
+    (let [end-test-var-data (->> @reports
+                                 (filter #(-> % :type (= :end-test-var)))
+                                 first)]
+      (is (some? (:elapsed end-test-var-data)) "Should pass"))))

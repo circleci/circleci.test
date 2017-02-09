@@ -14,7 +14,7 @@
     (test/do-report {:type :begin-test-var, :var v})
     (t)))
 
-(defn test-var
+(defn- test-var*
   [v]
   (assert (var? v) (format "v must be a var. got %s" (class v)))
   (let [ns (-> v meta :ns)
@@ -34,6 +34,13 @@
                 (test/do-report {:type :end-test-var,
                                  :var v
                                  :elapsed elapsed})))))))))
+
+(defn test-var
+  [v]
+  ;; Make sure calling any nested test fns invokes _our_ test-var, not
+  ;; clojure.test's
+  (binding [test/test-var test-var*]
+    (test-var* v)))
 
 (defn test-all-vars
   [ns]
