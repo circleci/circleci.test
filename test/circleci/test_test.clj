@@ -147,3 +147,45 @@
                                  (filter #(-> % :type (= :end-test-var)))
                                  first)]
       (is (some? (:elapsed end-test-var-data)) "Should pass"))))
+
+(defn counting-fixture
+  [counter]
+  (fn [f]
+    (swap! counter inc)
+    (f)))
+
+
+;; Dummy ns for testing once fixtures
+(in-ns 'circleci.test.test-ns)
+(clojure.core/require '[clojure.test :refer (deftest is)])
+
+(deftest dummy-test
+  (is 1 "Should pass"))
+
+(deftest nested-dummy-test
+  (dummy-test))
+
+;; And back to circleci.test-test
+(in-ns 'circleci.test-test)
+
+
+(deftest once-fixture-fns-run-exactly-once-per-invocation
+  (let [reports (atom [])
+        test-ns (find-ns 'circleci.test.test-ns)
+        once-fixture-counts (atom 0)
+        _ (alter-meta! test-ns
+                       assoc ::clojure.test/once-fixtures
+                             [(counting-fixture once-fixture-counts)])
+        test-fn (ns-resolve test-ns 'nested-dummy-test)]
+    (binding [clojure.test/report (tracking-report reports)]
+      (test-fn))
+
+    (is (= 1 @once-fixture-counts) "Should pass")
+    (is (= 2 (->> @reports
+                  (filter #(-> % :type (= :begin-test-var)))
+                  count))
+        "Should pass")
+    (is (= 2 (->> @reports
+                  (filter #(-> % :type (= :end-test-var)))
+                  count))
+        "Should pass")))
