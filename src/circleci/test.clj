@@ -46,7 +46,7 @@
             test/report report/report]
     (test-var* v)))
 
-(defn test-all-vars
+(defn- test-all-vars
   [ns]
   (let [once-fixture-fn (test/join-fixtures (::test/once-fixtures (meta ns)))]
     (once-fixture-fn
