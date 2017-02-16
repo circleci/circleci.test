@@ -169,7 +169,7 @@
 (in-ns 'circleci.test-test)
 
 
-(deftest once-fixture-fns-run-exactly-once-per-invocation
+(deftest once-fixture-fns-run-exactly-once-for-test-var-invocations
   (let [reports (atom [])
         test-ns (find-ns 'circleci.test.test-ns)
         once-fixture-counts (atom 0)
@@ -187,5 +187,33 @@
         "Should pass")
     (is (= 2 (->> @reports
                   (filter #(-> % :type (= :end-test-var)))
+                  count))
+        "Should pass")))
+
+(deftest once-fixture-fns-run-exactly-once-for-test-ns-invocations
+  (let [reports (atom [])
+        test-ns (find-ns 'circleci.test.test-ns)
+        once-fixture-counts (atom 0)
+        _ (alter-meta! test-ns
+                       assoc ::clojure.test/once-fixtures
+                             [(counting-fixture once-fixture-counts)])]
+    (binding [report/report (tracking-report reports)]
+      (t/test-ns test-ns))
+
+    (is (= 1 @once-fixture-counts) "Should pass")
+    (is (= 3 (->> @reports
+                  (filter #(-> % :type (= :begin-test-var)))
+                  count))
+        "Should pass")
+    (is (= 3 (->> @reports
+                  (filter #(-> % :type (= :end-test-var)))
+                  count))
+        "Should pass")
+    (is (= 1 (->> @reports
+                  (filter #(-> % :type (= :begin-test-ns)))
+                  count))
+        "Should pass")
+    (is (= 1 (->> @reports
+                  (filter #(-> % :type (= :end-test-ns)))
                   count))
         "Should pass")))
