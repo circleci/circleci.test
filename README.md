@@ -19,7 +19,18 @@ Run tests with `lein circleci-test`
 
 ## Differences from `clojure.test`
 * supports more than one test reporter at a time
-* includes elapsed time measured with `System/nanoTime` when reporting the end of a `deftest`
+* includes elapsed time measured with `System/nanoTime` when reporting the end
+  of a `deftest`
+* test fixtures are run when testing a single test, not just a set of tests
+* `:once` fixtures are run exactly once per invocation, whether testing an
+  entire namespace or a single test
+  
+
+## Caveats
+* Invoking a test-fn directly will not run any fixtures at all, exactly like
+  `clojure.test`. This is due to behaviour from `clojure.test/deftest` and
+  can't be worked around without forcing use of a different `deftest`
+  implementation.
 
 
 ## Design goals
