@@ -94,13 +94,13 @@
   (summary [this m])
 
   (begin-test-ns [this m]
-    (swap! suite-testcases (constantly [])))
+    (reset! suite-testcases []))
 
   (end-test-ns [this m]
     (spit-suite (suite-xml m @suite-testcases) out-dir))
 
   (begin-test-var [this m]
-    (swap! test-failures (constantly [])))
+    (reset! test-failures []))
 
   (end-test-var [this m]
     (let [testcase (testcase-xml m @test-failures)]
