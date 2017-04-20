@@ -20,20 +20,6 @@ jobs:
           paths:
             - ~/.m2
 
-      - run:
-          name: maybe deploy
-          command: |
-            if [[ "${CIRCLE_BRANCH}" == "master" ]]
-            then
-                # production is a fake branch
-                curl -u ${CIRCLE_API_TOKEN}: \
-                     -d revision=${CIRCLE_SHA1}  \
-                     -d build_parameters[CIRCLE_STAGE]=deploy \
-                     https://circleci.com/api/v1.1/project/github/circleci/circleci.test/tree/${CIRCLE_BRANCH}
-             else
-                echo not deploying
-             fi
-
   deploy:
     working_directory: ~/circleci.test
     docker:
@@ -49,3 +35,15 @@ jobs:
           command: |
             lein version-spec
             lein deploy circle-s3
+
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
