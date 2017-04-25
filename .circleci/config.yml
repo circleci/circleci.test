@@ -1,0 +1,49 @@
+version: 2.0
+jobs:
+  build:
+    docker:
+      - image: clojure:lein-2.7.1
+    working_directory: ~/circleci.test
+    steps:
+      - checkout
+
+      - cache-restore:
+          # always restore the latest cache
+          key: v1-jars-
+
+      - run: lein deps
+
+      - run: lein run -m circleci.test circleci.test-test circleci.test.test-report
+
+      - cache-save:
+          key: v1-jars-{{ checksum "project.clj" }}
+          paths:
+            - ~/.m2
+
+  deploy:
+    working_directory: ~/circleci.test
+    docker:
+      - image: clojure:lein-2.7.1
+    steps:
+      - checkout
+
+      - cache-restore:
+          key: v1-jars-
+
+      - run:
+          name: Push jars
+          command: |
+            lein version-spec
+            lein deploy circle-s3
+
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
