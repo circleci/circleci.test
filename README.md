@@ -6,7 +6,9 @@ A Clojure test-runner compatible with tests written using `clojure.test`
 
 Add `[circleci/circleci.test "0.1.37"]` to your dev dependencies.
 
-Run tests with `lein run -m circleci.test my.first.test.ns my.second.test.ns`
+Run all tests with `lein run -m circleci.test my.first.test.ns my.second.test.ns`
+
+Run individiual tests from a repl with `(circleci.test/test-var #'my.test.ns/my-test)`
 
 ### Leiningen plugin
 The plugin `circleci/lein-circleci-test` provides a Leiningen task for running
