@@ -123,7 +123,7 @@
 (defn test-ns-hook []
   (binding [original-report clojure.test/report
             report/report custom-report]
-    (#'t/test-all-vars (find-ns 'circleci.test-test))))
+    (#'t/test-all-vars (find-ns 'circleci.test-test) (constantly true))))
 
 (deftest clj-1588-symbols-in-are-isolated-from-test-clauses
   (binding [clojure.test/report original-report]
@@ -165,6 +165,9 @@
 (deftest nested-dummy-test
   (dummy-test))
 
+(deftest ^:integration test
+  (is false)) ; skipped by test selectors
+
 ;; And back to circleci.test-test
 (in-ns 'circleci.test-test)
 
@@ -198,7 +201,7 @@
                        assoc ::clojure.test/once-fixtures
                              [(counting-fixture once-fixture-counts)])]
     (binding [report/report (tracking-report reports)]
-      (t/test-ns test-ns))
+      (t/test-ns test-ns (complement :integration)))
 
     (is (= 1 @once-fixture-counts) "Should pass")
     (is (= 3 (->> @reports
