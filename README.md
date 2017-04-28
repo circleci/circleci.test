@@ -16,6 +16,18 @@ Add `[circleci/lein-circleci-test "0.1.0"]` to your `:plugins`
 
 Run tests with `lein circleci-test`
 
+### Running tests from a repl
+Use `circleci.test/test-var` to run a single test fn:
+```clojure
+(circleci.test/test-var #'my.test.ns/my-test)
+```
+
+Use `circleci.test/run-tests` to run all the tests in one or more namespaces:
+```clojure
+(circleci.test/run-tests 'my.test.ns)
+(circleci.test/run-tests 'my.test.ns 'my.other.test.ns)
+```
+
 
 ## Differences from `clojure.test`
 * supports more than one test reporter at a time
