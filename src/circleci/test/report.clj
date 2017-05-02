@@ -81,7 +81,11 @@
 
   (end-test-var [this m]))
 
-(def ^:dynamic *reporters* [(->ClojureDotTestReporter)])
+(defn clojure-test-reporter
+  []
+  (->ClojureDotTestReporter))
+
+(def ^:dynamic *reporters* [(clojure-test-reporter)])
 
 ;; Test result reporting
 (defmulti
