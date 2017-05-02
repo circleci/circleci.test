@@ -3,7 +3,9 @@
             circleci.test
             circleci.test.report
             [circleci.test.report.junit :as junit])
-  (:import clojure.data.xml.Element))
+  (:import clojure.data.xml.Element
+           java.nio.file.Files
+           java.nio.file.attribute.FileAttribute))
 
 (deftest failure-works
   (is (instance? Element (#'junit/failure-xml
@@ -18,7 +20,7 @@
   (let [ret (#'junit/testcase-xml {:type :end-test-var
                                    :name #'clojure.core/map
                                    :elapsed 0.03}
-                                  (junit/failure-xml
+                                  (#'junit/failure-xml
                                    {:expected (= 3 (+ 1 1)),
                                     :message nil,
                                     :type :fail,
@@ -35,7 +37,7 @@
                                     [(#'junit/testcase-xml {:type :end-test-var
                                                             :name #'clojure.core/map
                                                             :elapsed 0.03}
-                                                           [(junit/failure-xml
+                                                           [(#'junit/failure-xml
                                                              {:expected (= 3 (+ 1 1)),
                                                               :message nil,
                                                               :type :fail,
@@ -45,5 +47,7 @@
 
 (deftest junit-doesn't-break-return-code
   ;; `lein test` assumes tests return a map.
-  (binding [circleci.test.report/*reporters* [(junit/reporter (atom []) (atom []))]]
-    (is (map? (circleci.test/run-tests 'circleci.test-config)))))
+  (let [tempdir (Files/createTempDirectory "circleci.test.report.test-junit" (into-array FileAttribute []))]
+    (-> tempdir .toFile .deleteOnExit)
+    (binding [circleci.test.report/*reporters* [(junit/reporter (str tempdir))]]
+      (is (map? (circleci.test/run-tests 'circleci.test-config))))))
