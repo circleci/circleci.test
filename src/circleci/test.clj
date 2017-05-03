@@ -24,7 +24,7 @@
 (def ^:dynamic *once-fixtures* {})
 
 (defn- read-config []
-  (if-let [r (io/resource "circleci.test/config.clj")]
+  (if-let [r (io/resource "circleci_test/config.clj")]
     (eval (read (clojure.lang.LineNumberingPushbackReader. (io/reader r))))
     {}))
 
@@ -159,8 +159,7 @@
 
 (defn- lookup-selector [selector-name]
   (let [selectors (:selectors (read-config) {:default identity})]
-    (or (get selectors selector-name)
-        (throw (ex-info "Not found" {:selector selector-name})))))
+    (or (get selectors selector-name) selector-name)))
 
 (defn- read-args [raw-args]
   (let [args (map read-string raw-args)]
