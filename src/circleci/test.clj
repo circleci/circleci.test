@@ -167,6 +167,26 @@
       (cons (lookup-selector (first args)) (rest args))
       (cons (lookup-selector :default) args))))
 
+(defn- nses-in-directories [dirs]
+  (for [dir dirs f (file-seq (io/file dir))
+        :when (re-find #"\.clj$" (str f))]
+    (second (read-string (slurp f)))))
+
+(defn dir
+  ([dirs-str] (dir dirs-str ":default"))
+  ([dirs-str selector]
+   ;; This function is designed to be used with Leiningen aliases only, since
+   ;; adding :project/test-dirs to an alias will pass in data from the project
+   ;; map as an argument; however it passes it in as a string.
+   (when-not (try (coll? (read-string dirs-str)) (catch Exception _))
+     (binding [*out* *err*]
+       (println "Please see the readme for usage of this function.")
+       (System/exit 1)))
+   (let [nses (nses-in-directories (read-string dirs-str))
+         _ (apply require :reload nses)
+         summary (apply run-selected-tests (read-string selector) nses)]
+     (System/exit (+ (:error summary) (:fail summary))))))
+
 (defn -main
   [& raw-args]
   (when (empty? raw-args)

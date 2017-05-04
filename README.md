@@ -8,14 +8,14 @@ Keep your existing `deftest`s, but gain flexibility around how you run them.
 
 Add `[circleci/circleci.test "0.1.37"]` to your dev dependencies.
 
-Run all tests with `lein run -m circleci.test my.first.test.ns my.second.test.ns`
+Run specific test namespaces with `lein run -m circleci.test my.first.test.ns my.second.test.ns`.
 
-Run individiual tests from a repl with `(circleci.test/test-var #'my.test.ns/my-test)`
+Run individiual tests from a repl with `(circleci.test/test-var #'my.test.ns/my-test)`.
 
-Alternatively you can add an alias:
+Alternatively you can add a Leiningen alias to test your whole test directory:
 
 ```clj
-:aliases {"test" ["run" "-m" "circleci.test" "my.first.test.ns" "my.second.test.ns"]}
+:aliases {"test" ["run" "-m" "circleci.test/dir" :project/test-paths]}
 ```
 
 This will replace Leiningen's built-in `test` task with this one.
@@ -39,6 +39,11 @@ selector functions in `dev-resources/circleci_test/config.clj`:
              :acceptance (fn [m] (or (:integration m) (:functional m)))
              :default (complement :flaky)}}
 ```
+
+If you have the `circleci.test/dir` alias set up as per above, you can pass
+in a test selector as a command-line argument:
+
+    $ lein test :acceptance
 
 ### Running tests from a repl
 Use `circleci.test/test-var` to run a single test fn:

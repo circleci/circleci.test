@@ -11,9 +11,7 @@ jobs:
           # always restore the latest cache
           key: v1-jars-
 
-      - run: lein deps
-
-      - run: lein run -m circleci.test circleci.test-test circleci.test.test-report
+      - run: lein test
 
       - cache-save:
           key: v1-jars-{{ checksum "project.clj" }}
