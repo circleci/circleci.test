@@ -5,4 +5,6 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :pedantic? :abort
   :dependencies [[org.clojure/clojure "1.8.0"]]
+  :aliases {"ctest" ["run" "-m" "circleci.test"
+                     "circleci.test-test" "circleci.test.test-report"]}
   :profiles {:uberjar {:aot :all}})
