@@ -1,6 +1,7 @@
 (ns circleci.test
   (:require [circleci.test.report :as report]
-            [clojure.test :as test]))
+            [clojure.test :as test]
+            [clojure.java.io :as io]))
 
 ;; Once fixtures should be run exactly once regardless of which entry-point
 ;; into circleci.test is used
@@ -21,6 +22,11 @@
 ;; the ns the test var belongs to to a fixture generating fn that produces a
 ;; dummy once-fixture.
 (def ^:dynamic *once-fixtures* {})
+
+(defn- read-config []
+  (if-let [r (io/resource "circleci_test/config.clj")]
+    (eval (read (clojure.lang.LineNumberingPushbackReader. (io/reader r))))
+    {}))
 
 (defn- make-once-fixture-fn
   [ns]
@@ -88,10 +94,9 @@
     (test-var* v)))
 
 
-(defn- test-all-vars
-  [ns]
+(defn- test-all-vars [ns selector]
   (doseq [v (vals (ns-interns ns))]
-    (when (:test (meta v))
+    (when (and (:test (meta v)) (selector (meta v)))
       (test-var v))))
 
 (defn test-ns
@@ -104,50 +109,69 @@
   Internally binds *report-counters* to a ref initialized to
   *initial-report-counters*.  Returns the final, dereferenced state of
   *report-counters*."
-  [ns]
-  (binding [test/*report-counters* (ref test/*initial-report-counters*)
-            test/report report/report]
-    (let [ns-obj (the-ns ns)
-          once-fixture-fn (once-fixtures ns-obj)]
-      (once-fixture-fn
+  ([ns] (test-ns ns (constantly true)))
+  ([ns selector]
+   (binding [test/*report-counters* (ref test/*initial-report-counters*)
+             test/report report/report]
+     (let [ns-obj (the-ns ns)
+           once-fixture-fn (once-fixtures ns-obj)]
+       (once-fixture-fn
         (fn []
           (test/do-report {:type :begin-test-ns, :ns ns-obj})
           ;; If the namespace has a test-ns-hook function, call that:
           (if-let [v (find-var (symbol (str (ns-name ns-obj)) "test-ns-hook"))]
             ((var-get v))
             ;; Otherwise, just test every var in the namespace.
-            (test-all-vars ns-obj))
+            (test-all-vars ns-obj selector))
           (test/do-report {:type :end-test-ns, :ns ns-obj}))))
-    @test/*report-counters*))
+     @test/*report-counters*)))
 
 
 ;; Running tests; high-level fns
+
+(defn run-selected-tests
+  "Runs tests filtered by selector function in given namespace; prints results.
+  Defaults to current namespace if none given.  Returns a map
+  summarizing test results."
+  ([selector] (run-selected-tests selector *ns*))
+  ([selector & namespaces]
+   (let [summary (assoc (apply merge-with + (for [n namespaces]
+                                              (test-ns n selector)))
+                        :type :summary)]
+     (test/do-report summary)
+     summary)))
 
 (defn run-tests
   "Runs all tests in the given namespaces; prints results.
   Defaults to current namespace if none given.  Returns a map
   summarizing test results."
   ([] (run-tests *ns*))
-  ([& namespaces]
-    (let [summary (assoc (apply merge-with + (map test-ns namespaces))
-                         :type :summary)]
-      (test/do-report summary)
-      summary)))
+  ([& namespaces] (apply run-selected-tests (constantly true) namespaces)))
 
 (defn run-all-tests
-  "Runs all tests in all namespaces; prints results.
+  "Runs all tests in all loaded namespaces; prints results.
   Optional argument is a regular expression; only namespaces with
   names matching the regular expression (with re-matches) will be
-  tested."
+  tested. Note that this may skip tests which exist on disk but haven't
+  been loaded yet."
   ([] (apply run-tests (all-ns)))
   ([re] (apply run-tests (filter #(re-matches re (name (ns-name %))) (all-ns)))))
 
+(defn- lookup-selector [selector-name]
+  (let [selectors (:selectors (read-config) {:default identity})]
+    (or (get selectors selector-name) selector-name)))
+
+(defn- read-args [raw-args]
+  (let [args (map read-string raw-args)]
+    (if (keyword? (first args)) ; the selector must be the first arg
+      (cons (lookup-selector (first args)) (rest args))
+      (cons (lookup-selector :default) args))))
+
 (defn -main
-  [& ns-strings]
-  (let [nses (map read-string ns-strings)]
-    (if-not (seq nses)
-      (throw (ex-info "Must pass a list of namespaces to test" {}))
-      (let [_ (apply require :reload nses)
-            summary (apply run-tests nses)]
-        (System/exit (+ (:error summary)
-                        (:fail summary)))))))
+  [& raw-args]
+  (when (empty? raw-args)
+    (throw (ex-info "Must pass a list of namespaces to test" {})))
+  (let [[selector & nses] (read-args raw-args)
+        _ (apply require :reload nses)
+        summary (apply run-selected-tests selector nses)]
+    (System/exit (+ (:error summary) (:fail summary)))))
