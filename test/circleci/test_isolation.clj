@@ -10,7 +10,7 @@
 (clojure.core/require '[clojure.test :refer (deftest is use-fixtures)])
 (clojure.core/require '[circleci.test.isolation :as i])
 
-(use-fixtures :each (i/enforce-isolation))
+(use-fixtures :each (i/enforce))
 
 (deftest test-network
   (try (re-find #"defproject" (slurp "https://leiningen.org"))

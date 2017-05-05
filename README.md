@@ -72,10 +72,10 @@ implemented with pure functions, while an outer layer of imperative code ties
 things together. Ideally in this case most tests should be unit tests, which
 only concern themselves with pure functions and do no I/O. However, it's easy
 for impurity to accidentally sneak into a test. In order to prevent this, you
-can use the `circleci.test.isolation/enforce-isolation` test fixture.
+can use the `circleci.test.isolation/enforce` test fixture.
 
 ```clj
-(use-fixtures :each (enforce-isolation))
+(use-fixtures :each (isolation/enforce))
 
 (deftest accidentally-uses-io
   (is (re-find #"cx") (get-in (read-parse "sample3") [:body :content 3])))
@@ -92,13 +92,13 @@ can use the `circleci.test.isolation/enforce-isolation` test fixture.
 ```
 
 The first test is not a unit test because it calls `read-parse`, a function
-that performs I/O. The `enforce-isolation` fixture will cause it to fail, while
+that performs I/O. The `isolation/enforce` fixture will cause it to fail, while
 the second one will succeed because it only calls `parse`, which is pure. The
 third test will also pass because it has explicitly been flagged with `^:io`.
 
 The default isolation blocks use of network and file access and whitelists
 `deftest`s which are tagged with `^:io` and `^:integration`. You can pass
-arguments to `enforce-isolation` which will provide a fixture that looks for
+arguments to `isolation/enforce` which will provide a fixture that looks for
 different set of selector tags or uses a different predicate to determine
 which things to block:
 
@@ -106,7 +106,7 @@ which things to block:
 (defn deny? [permission]
   (instance? java.net.SocketPermission permission))
 
-(use-fixtures :each (enforce-isolation [:io :network] deny?))
+(use-fixtures :each (isolation/enforce [:io :network] deny?))
 ```
 
 In this example we only block tests which use `SocketPermission`. The `deny?`

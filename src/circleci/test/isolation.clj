@@ -27,15 +27,15 @@
      java.net.URLPermission
      java.io.FilePermission} (class p)))
 
-(defn enforce-isolation
+(defn enforce
   "Ensure unit tests running in this fixture do not do I/O.
 
   By default, tests are considered unit tests unless they are tagged with
   ^:integration or ^:io, but you can provide your own selectors. You can
   also provide your own deny? predicate which takes an instance of
   java.security.Permission and tells whether it should be blocked or not."
-  ([] (enforce-isolation [:integration :io] default-deny?))
-  ([selectors] (enforce-isolation selectors default-deny?))
+  ([] (enforce [:integration :io] default-deny?))
+  ([selectors] (enforce selectors default-deny?))
   ([selectors deny?]
    (fn [f]
      (if (some selectors (meta f))
