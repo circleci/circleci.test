@@ -1,4 +1,4 @@
-(defproject circleci/circleci.test "0.1.0"
+(defproject circleci/circleci.test "0.2.0"
   :description "clojure.test compatible test-runner"
   :url "https://github.com/circleci/circleci.test"
   :license {:name "Eclipse Public License"

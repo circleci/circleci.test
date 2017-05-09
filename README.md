@@ -6,7 +6,7 @@ Keep your existing `deftest`s, but gain flexibility around how you run them.
 
 ## Usage
 
-Add `[circleci/circleci.test "0.1.37"]` to your dev dependencies.
+Add `[circleci/circleci.test "0.2.0"]` to your dev dependencies.
 
 Run specific test namespaces with `lein run -m circleci.test my.first.test.ns my.second.test.ns`.
 
@@ -60,14 +60,6 @@ Use `circleci.test/run-tests` to run all the tests in one or more namespaces:
 There is also a `circleci.test/run-all-tests` function; however please note that
 this only runs tests in namespaces that have already been loaded rather than
 running all tests that exist on disk.
-
-### Leiningen plugin
-The plugin `circleci/lein-circleci-test` provides a Leiningen task for running
-tests. It respects the `:test-selectors` defined in your `project.clj`.
-
-Add `[circleci/lein-circleci-test "0.1.0"]` to your `:plugins`.
-
-Run tests with `lein circleci-test`.
 
 ### Test Isolation
 
