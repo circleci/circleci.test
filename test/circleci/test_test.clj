@@ -123,7 +123,7 @@
 (defn test-ns-hook []
   (binding [original-report clojure.test/report
             report/report custom-report]
-    (#'t/test-all-vars (find-ns 'circleci.test-test) (constantly true))))
+    (#'t/test-all-vars {} (find-ns 'circleci.test-test) (constantly true))))
 
 (deftest clj-1588-symbols-in-are-isolated-from-test-clauses
   (binding [clojure.test/report original-report]

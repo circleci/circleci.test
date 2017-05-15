@@ -25,7 +25,7 @@
 
 (defn- read-config []
   (if-let [r (io/resource "circleci_test/config.clj")]
-    (eval (read (clojure.lang.LineNumberingPushbackReader. (io/reader r))))
+    (load-reader (clojure.lang.LineNumberingPushbackReader. (io/reader r)))
     {}))
 
 (defn- make-once-fixture-fn
@@ -83,21 +83,24 @@
 
   This could be by invoking a deftest directly from a repl, editor integration
   etc."
-  [v]
-  ;; Make sure calling any nested test fns invokes _our_ test-var, not
-  ;; clojure.test's
-  ;;
-  ;; Also need to rebind test/report here since test-ns and test-var are
-  ;; entrypoints into the test runner
-  (binding [test/test-var test-var*
-            test/report report/report]
-    (test-var* v)))
+  ([v]
+   (test-var (read-config) v))
+  ([config v]
+   ;; Make sure calling any nested test fns invokes _our_ test-var, not
+   ;; clojure.test's
+   ;;
+   ;; Also need to rebind test/report here since test-ns and test-var are
+   ;; entrypoints into the test runner
+   (binding [test/test-var test-var*
+             test/report report/report
+             report/*reporters* (:reporters config report/*reporters*)]
+     (test-var* v))))
 
 
-(defn- test-all-vars [ns selector]
+(defn- test-all-vars [config ns selector]
   (doseq [v (vals (ns-interns ns))]
     (when (and (:test (meta v)) (selector (meta v)))
-      (test-var v))))
+      (test-var config v))))
 
 (defn test-ns
   "The entry-poing into circleci.test for running all tests in a namespace.
@@ -111,20 +114,22 @@
   *report-counters*."
   ([ns] (test-ns ns (constantly true)))
   ([ns selector]
-   (binding [test/*report-counters* (ref test/*initial-report-counters*)
-             test/report report/report]
-     (let [ns-obj (the-ns ns)
-           once-fixture-fn (once-fixtures ns-obj)]
-       (once-fixture-fn
-        (fn []
-          (test/do-report {:type :begin-test-ns, :ns ns-obj})
-          ;; If the namespace has a test-ns-hook function, call that:
-          (if-let [v (find-var (symbol (str (ns-name ns-obj)) "test-ns-hook"))]
-            ((var-get v))
-            ;; Otherwise, just test every var in the namespace.
-            (test-all-vars ns-obj selector))
-          (test/do-report {:type :end-test-ns, :ns ns-obj}))))
-     @test/*report-counters*)))
+   (let [config (read-config)]
+     (binding [test/*report-counters* (ref test/*initial-report-counters*)
+               test/report report/report
+               report/*reporters* (:reporters config report/*reporters*)]
+       (let [ns-obj (the-ns ns)
+             once-fixture-fn (once-fixtures ns-obj)]
+         (once-fixture-fn
+          (fn []
+            (test/do-report {:type :begin-test-ns, :ns ns-obj})
+            ;; If the namespace has a test-ns-hook function, call that:
+            (if-let [v (find-var (symbol (str (ns-name ns-obj)) "test-ns-hook"))]
+              ((var-get v))
+              ;; Otherwise, just test every var in the namespace.
+              (test-all-vars config ns-obj selector))
+            (test/do-report {:type :end-test-ns, :ns ns-obj}))))
+       @test/*report-counters*))))
 
 
 ;; Running tests; high-level fns
