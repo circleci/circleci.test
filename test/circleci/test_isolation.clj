@@ -14,7 +14,7 @@
 
 (deftest test-network
   (try (re-find #"defproject" (slurp "https://leiningen.org"))
-       (catch Error e
+       (catch Throwable e
          (swap! circleci.test-isolation/errors conj e))))
 
 (deftest test-octo-inc
@@ -23,19 +23,19 @@
 
 (deftest ^:io test-writing-file
   (try
-    (let [tmp (doto (java.io.File/createTempFile "circleci.test" "file")
-                .deleteOnExit)]
-      (spit tmp "stuff"))
-    (catch Error e
+    (spit "/tmp/whatever" "stuff")
+    (catch Throwable e
       (swap! circleci.test-isolation/errors conj e))))
 
 ;; And back to circleci.test-test
 (in-ns 'circleci.test-isolation)
 
 (deftest test-isolation
+  ;; Work around problem with cached class lookups; see #9
+  (java.security.MessageDigest/getInstance "SHA")
   (let [summary (atom nil)]
     (with-out-str
       (reset! summary (run-tests 'circleci.test.under-isolation)))
     (is (= 1 (:pass @summary)))
-    (is (= [java.lang.SecurityException java.lang.NoClassDefFoundError]
+    (is (= [java.lang.SecurityException java.lang.ExceptionInInitializerError]
            (map class @errors)))))
