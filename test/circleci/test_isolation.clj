@@ -27,15 +27,19 @@
     (catch Throwable e
       (swap! circleci.test-isolation/errors conj e))))
 
+(deftest digestive
+  (let [digest (java.security.MessageDigest/getInstance "SHA")]
+    (is (= [-70 90 59 60 31 -63 58 89 80 -112 67
+            -56 101 57 65 -118 -42 10 -101 -118]
+           (seq (.digest digest (.getBytes "what are the haps my friends")))))))
+
 ;; And back to circleci.test-test
 (in-ns 'circleci.test-isolation)
 
 (deftest test-isolation
-  ;; Work around problem with cached class lookups; see #9
-  (java.security.MessageDigest/getInstance "SHA")
   (let [summary (atom nil)]
     (with-out-str
       (reset! summary (run-tests 'circleci.test.under-isolation)))
-    (is (= 1 (:pass @summary)))
-    (is (= [java.lang.SecurityException java.lang.ExceptionInInitializerError]
+    (is (= 2 (:pass @summary)))
+    (is (= [java.lang.SecurityException java.lang.SecurityException]
            (map class @errors)))))

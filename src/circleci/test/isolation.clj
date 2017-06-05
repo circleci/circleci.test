@@ -22,10 +22,18 @@
 (defn default-deny?
   "Should this permission be blocked from unit tests?"
   [p]
-  (#{java.net.NetPermission
-     java.net.SocketPermission
-     java.net.URLPermission
-     java.io.FilePermission} (class p)))
+  (if (instance? java.io.FilePermission p)
+    ;; You're looking at this and thinking, "wait, why do we allow access
+    ;; to reading files inside the Java home?" which to be honest is a really
+    ;; good question! The sad fact of life is that sometimes pure functions
+    ;; still require disk access. For instance, the first time you calculate
+    ;; the checksum of a bunch of bytes, it must lazy-load the bytecode for
+    ;; the relevant MessageDigest implementation from disk.
+    (not (or (re-find #"/dev/u?random" (.getName p))
+             (.startsWith (.getName p) (System/getProperty "java.home"))))
+    (#{java.net.NetPermission
+       java.net.SocketPermission
+       java.net.URLPermission} (class p))))
 
 (defn enforce
   "Ensure unit tests running in this fixture do not do I/O.
