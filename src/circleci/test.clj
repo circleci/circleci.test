@@ -174,7 +174,7 @@
 
 (defn dir
   ([dirs-str] (dir dirs-str ":default"))
-  ([dirs-str selector]
+  ([dirs-str selector-str]
    ;; This function is designed to be used with Leiningen aliases only, since
    ;; adding :project/test-dirs to an alias will pass in data from the project
    ;; map as an argument; however it passes it in as a string.
@@ -184,7 +184,8 @@
        (System/exit 1)))
    (let [nses (nses-in-directories (read-string dirs-str))
          _ (apply require :reload nses)
-         summary (apply run-selected-tests (read-string selector) nses)]
+         selector (lookup-selector (read-string selector-str))
+         summary (apply run-selected-tests selector nses)]
      (System/exit (+ (:error summary) (:fail summary))))))
 
 (defn -main
