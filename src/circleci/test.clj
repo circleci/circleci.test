@@ -113,8 +113,8 @@
   *initial-report-counters*.  Returns the final, dereferenced state of
   *report-counters*."
   ([ns] (test-ns ns (constantly true)))
-  ([ns selector] (test-ns (read-config!) ns selector))
-  ([config ns selector]
+  ([ns selector] (test-ns ns selector (read-config!)))
+  ([ns selector config]
    (binding [test/*report-counters* (ref test/*initial-report-counters*)
              test/report report/report
              report/*reporters* (:reporters config report/*reporters*)]
@@ -138,10 +138,10 @@
   "Runs tests filtered by selector function in given namespace; prints results.
   Defaults to current namespace if none given.  Returns a map
   summarizing test results."
-  ([selector] (run-selected-tests (read-config!) selector *ns*))
-  ([config selector & namespaces]
+  ([selector] (run-selected-tests selector (read-config!) *ns*))
+  ([selector config & namespaces]
    (let [summary (assoc (apply merge-with + (for [n namespaces]
-                                              (test-ns config n selector)))
+                                              (test-ns n selector config)))
                         :type :summary)]
      (test/do-report summary)
      summary)))
@@ -189,7 +189,7 @@
        (System/exit 1)))
    (let [nses (nses-in-directories (read-string dirs-str))
          _ (apply require :reload nses)
-         selector (lookup-selector (read-string selector-str))
+         selector (lookup-selector (read-config!) (read-string selector-str))
          summary (apply run-selected-tests selector nses)]
      (System/exit (+ (:error summary) (:fail summary))))))
 
