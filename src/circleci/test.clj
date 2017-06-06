@@ -138,9 +138,10 @@
   "Runs tests filtered by selector function in given namespace; prints results.
   Defaults to current namespace if none given.  Returns a map
   summarizing test results."
-  ([selector] (run-selected-tests selector (read-config!) *ns*))
-  ([selector config & namespaces]
-   (let [summary (assoc (apply merge-with + (for [n namespaces]
+  ([selector] (run-selected-tests selector [*ns*]))
+  ([selector nses] (run-selected-tests selector nses (read-config!)))
+  ([selector nses config]
+   (let [summary (assoc (apply merge-with + (for [n nses]
                                               (test-ns n selector config)))
                         :type :summary)]
      (test/do-report summary)
@@ -151,7 +152,7 @@
   Defaults to current namespace if none given.  Returns a map
   summarizing test results."
   ([] (run-tests *ns*))
-  ([& namespaces] (apply run-selected-tests (constantly true) namespaces)))
+  ([& namespaces] (run-selected-tests (constantly true) namespaces)))
 
 (defn run-all-tests
   "Runs all tests in all loaded namespaces; prints results.
@@ -190,7 +191,7 @@
    (let [nses (nses-in-directories (read-string dirs-str))
          _ (apply require :reload nses)
          selector (lookup-selector (read-config!) (read-string selector-str))
-         summary (apply run-selected-tests selector nses)]
+         summary (run-selected-tests selector nses)]
      (System/exit (+ (:error summary) (:fail summary))))))
 
 (defn -main
@@ -200,5 +201,5 @@
   (let [config (read-config!)
         [selector & nses] (read-args config raw-args)
         _ (apply require :reload nses)
-        summary (apply run-selected-tests config selector nses)]
+        summary (apply run-selected-tests selector nses config)]
     (System/exit (+ (:error summary) (:fail summary)))))
