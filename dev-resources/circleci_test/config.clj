@@ -5,4 +5,4 @@
              :default (complement :failing)}
  :reporters [(clojure-test-reporter)
              (junit/reporter (or (System/getenv "CIRCLE_TEST_REPORTS")
-                                 "."))]}
+                                 "test-results"))]}
