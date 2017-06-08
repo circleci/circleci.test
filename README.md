@@ -64,7 +64,11 @@ argument to the `junit/reporter` function indicates which directory you
 want your test output in. It's best to ignore this directory in your version
 control system configuration.
 
+If you use the junit test reporter, you can run `circleci.test.retest/-main`
+to re-run only the set of tests which previously failed.
+
 ### Running tests from a repl
+
 Use `circleci.test/test-var` to run a single test fn:
 ```clojure
 (circleci.test/test-var #'my.test.ns/my-test)
