@@ -85,7 +85,11 @@
   []
   (->ClojureDotTestReporter))
 
-(def ^:dynamic *reporters* [(clojure-test-reporter)])
+(def ^:dynamic *reporters*
+  "The sequence of currently configured test reporters. Consumers of the
+  circleci.test library should not bind this var, set the :reporters key in
+  test runner config instead."
+  [(clojure-test-reporter)])
 
 ;; Test result reporting
 (defmulti

@@ -97,6 +97,7 @@
     (reset! suite-testcases []))
 
   (end-test-ns [this m]
+    (.mkdirs (java.io.File. out-dir))
     (spit-suite (suite-xml m @suite-testcases) out-dir))
 
   (begin-test-var [this m]

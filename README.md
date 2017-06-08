@@ -45,6 +45,25 @@ in a test selector as a command-line argument:
 
     $ lein test :acceptance
 
+### Reporters
+
+In order to gather metadata about your test runs, you can configure
+`circleci.test` to emit output
+in [JUnit XML format](https://ant.apache.org/manual/Tasks/junitreport.html) by
+putting this in your `dev-resources/circleci_test/config.clj` file:
+
+```clj
+(require '[circleci.test.report.junit :as junit])
+
+{:reporters [(circleci.test.report/clojure-test-reporter)
+             (junit/reporter "target/test-results")]}
+```
+
+Unlike `clojure.test`, you can use more than one reporter at a time. The
+argument to the `junit/reporter` function indicates which directory you
+want your test output in. It's best to ignore this directory in your version
+control system configuration.
+
 ### Running tests from a repl
 Use `circleci.test/test-var` to run a single test fn:
 ```clojure
