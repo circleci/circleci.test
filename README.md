@@ -80,6 +80,16 @@ There is also a `circleci.test/run-all-tests` function; however please note that
 this only runs tests in namespaces that have already been loaded rather than
 running all tests that exist on disk.
 
+### Global fixtures
+
+In addition to `:once` and `:each` fixtures from `clojure.test`, you can define global fixtures that are only run once for the entire test run, no matter how many namespaces you run. This should be declared in your config file rather in any one individual test file though; otherwise it may not get loaded:
+
+```clj
+{:global-fixture (fn [f]
+                   (myapp.db/migrate)
+                   (f))}
+```
+
 ### Test Isolation
 
 Clojure codebases that follow functional programming techniques should follow
