@@ -42,6 +42,15 @@
                                         (fn [x] (x))))]
         ((make-once-fixtures ns) f)))))
 
+(def ^:private ^:dynamic *inside-global-fixtures?* false)
+
+(defn make-global-fixture [{:keys [global-fixture]}]
+  (fn [f]
+    (if (or *inside-global-fixtures?* (not global-fixture))
+      (f)
+      (binding [*inside-global-fixtures?* true]
+        (global-fixture f)))))
+
 ;; Running tests; low-level fns
 
 (defn- nanos->seconds
@@ -55,18 +64,21 @@
     (t)))
 
 (defn- test-var*
-  [v]
+  [config v]
   (assert (var? v) (format "v must be a var. got %s" (class v)))
   (let [ns (-> v meta :ns)
+        global-fixture-fn (make-global-fixture config)
         once-fixture-fn (once-fixtures ns)
         each-fixture-fn (test/join-fixtures (::test/each-fixtures (meta ns)))]
     (when (:test (meta v))
       (binding [test/*testing-vars* (conj test/*testing-vars* v)]
         (let [start-time (System/nanoTime)]
           (try
-            (once-fixture-fn
-              (fn []
-                (each-fixture-fn (fn [] (test* v)))))
+            (global-fixture-fn
+             (fn []
+               (once-fixture-fn
+                (fn []
+                  (each-fixture-fn (fn [] (test* v)))))))
             (catch Throwable e
               (test/do-report {:type :error,
                                :message "Uncaught exception, not in assertion."
@@ -84,23 +96,23 @@
   This could be by invoking a deftest directly from a repl, editor integration
   etc."
   ([v]
-   (test-var (read-config!) v))
-  ([config v]
+   (test-var v (read-config!)))
+  ([v config]
    ;; Make sure calling any nested test fns invokes _our_ test-var, not
    ;; clojure.test's
    ;;
    ;; Also need to rebind test/report here since test-ns and test-var are
    ;; entrypoints into the test runner
-   (binding [test/test-var test-var*
+   (binding [test/test-var (partial test-var* config)
              test/report report/report
              report/*reporters* (:reporters config report/*reporters*)]
-     (test-var* v))))
+     (test-var* config v))))
 
 
 (defn- test-all-vars [config ns selector]
   (doseq [v (vals (ns-interns ns))]
     (when (and (:test (meta v)) (selector (meta v)))
-      (test-var config v))))
+      (test-var v config))))
 
 (defn test-ns
   "The entry-poing into circleci.test for running all tests in a namespace.
@@ -119,16 +131,20 @@
              test/report report/report
              report/*reporters* (:reporters config report/*reporters*)]
      (let [ns-obj (the-ns ns)
+           global-fixture-fn (make-global-fixture config)
            once-fixture-fn (once-fixtures ns-obj)]
-       (once-fixture-fn
+       (global-fixture-fn
         (fn []
-          (test/do-report {:type :begin-test-ns, :ns ns-obj})
-          ;; If the namespace has a test-ns-hook function, call that:
-          (if-let [v (find-var (symbol (str (ns-name ns-obj)) "test-ns-hook"))]
-            ((var-get v))
-            ;; Otherwise, just test every var in the namespace.
-            (test-all-vars config ns-obj selector))
-          (test/do-report {:type :end-test-ns, :ns ns-obj}))))
+          (once-fixture-fn
+           (fn []
+             (test/do-report {:type :begin-test-ns, :ns ns-obj})
+             ;; If the namespace has a test-ns-hook function, call that:
+             (if-let [v (find-var (symbol (str (ns-name ns-obj))
+                                          "test-ns-hook"))]
+               ((var-get v))
+               ;; Otherwise, just test every var in the namespace.
+               (test-all-vars config ns-obj selector))
+             (test/do-report {:type :end-test-ns, :ns ns-obj}))))))
      @test/*report-counters*)))
 
 
@@ -141,9 +157,11 @@
   ([selector] (run-selected-tests selector [*ns*]))
   ([selector nses] (run-selected-tests selector nses (read-config!)))
   ([selector nses config]
-   (let [summary (assoc (apply merge-with + (for [n nses]
-                                              (test-ns n selector config)))
-                        :type :summary)]
+   (let [global-fixture-fn (make-global-fixture config)
+         summary (global-fixture-fn
+                  #(assoc (apply merge-with + (for [n nses]
+                                                (test-ns n selector config)))
+                          :type :summary))]
      (test/do-report summary)
      summary)))
 

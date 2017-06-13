@@ -22,6 +22,10 @@
             [circleci.test.report :as report]
             [clojure.test :refer (deftest testing is are)]))
 
+(deftest should-run-global-fixture
+  ;; this is defined in dev-resources/circleci_test/config.clj
+  (is @(resolve 'user/*inside-global*) "Should pass"))
+
 (deftest can-test-symbol
   (let [x true]
     (is x "Should pass"))
