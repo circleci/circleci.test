@@ -24,9 +24,10 @@
 ;; dummy once-fixture.
 (def ^:dynamic *once-fixtures* {})
 
-(def ^:private default-config {:test-results-dir "test-results"})
+(def ^:private default-config {:test-results-dir "test-results"
+                               :reporters [report/clojure-test-reporter]})
 
-(defn- read-config! []
+(defn read-config! []
   (let [config (if-let [r (io/resource "circleci_test/config.clj")]
                  (load-reader (LineNumberingPushbackReader. (io/reader r)))
                  {})]
