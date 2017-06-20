@@ -63,7 +63,12 @@ putting this in your `dev-resources/circleci_test/config.clj` file:
 Unlike `clojure.test`, you can use more than one reporter at a time. It's recommended to add your `:test-results-dir` to the ignore list of your version control system.
 
 If you use the junit test reporter, you can run `circleci.test.retest/-main`
-to re-run only the set of tests which previously failed.
+to re-run only the set of tests which previously failed. Adding an alias in `project.clj` is recommended:
+
+```clj
+:aliases {"test" ["run" "-m" "circleci.test/dir" :project/test-paths]
+          "retest" ["run" "-m" "circleci.test.retest"]}
+```
 
 ### Running tests from a repl
 

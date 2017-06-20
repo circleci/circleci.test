@@ -19,11 +19,17 @@
         test (failed-tests-from (xml/parse (io/reader report-file)))]
     test))
 
-(defn -main [report-dir]
-  (if (.exists (io/file report-dir))
-    (doseq [test (failed-tests report-dir)]
-      (require (symbol (namespace test)))
-      (test/test-var (resolve test)))
-    (binding [*out* *err*]
-      (println missing-junit-msg)
-      (System/exit 1))))
+(defn- make-selector [tests]
+  (comp (set (map name tests)) str :name))
+
+(defn -main []
+  (let [{:keys [test-results-dir] :as config} (test/read-config!)]
+    (when-not (.exists (io/file test-results-dir))
+      (binding [*out* *err*]
+        (println missing-junit-msg)
+        (System/exit 1)))
+    (if-let [failed (seq (failed-tests test-results-dir))]
+      (doseq [[test-ns tests] (group-by (comp symbol namespace) failed)]
+        (require test-ns)
+        (test/test-ns test-ns (make-selector tests) config))
+      (println "No failed tests."))))
