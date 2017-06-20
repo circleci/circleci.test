@@ -53,6 +53,11 @@
 
 ;; Running tests; low-level fns
 
+(defn- get-reporters [config]
+  (or report/*reporters*
+      (for [make-reporter (:reporters config)]
+        (make-reporter config))))
+
 (defn- nanos->seconds
   [nanos]
   (/ nanos 1e9))
@@ -105,7 +110,7 @@
    ;; entrypoints into the test runner
    (binding [test/test-var (partial test-var* config)
              test/report report/report
-             report/*reporters* (:reporters config report/*reporters*)]
+             report/*reporters* (get-reporters config)]
      (test-var* config v))))
 
 
@@ -129,7 +134,7 @@
   ([ns selector config]
    (binding [test/*report-counters* (ref test/*initial-report-counters*)
              test/report report/report
-             report/*reporters* (:reporters config report/*reporters*)]
+             report/*reporters* (get-reporters config)]
      (let [ns-obj (the-ns ns)
            global-fixture-fn (make-global-fixture config)
            once-fixture-fn (once-fixtures ns-obj)]

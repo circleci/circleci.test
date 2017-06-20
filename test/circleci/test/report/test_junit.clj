@@ -49,5 +49,5 @@
   ;; `lein test` assumes tests return a map.
   (let [tempdir (Files/createTempDirectory "circleci.test.report.test-junit" (into-array FileAttribute []))]
     (-> tempdir .toFile .deleteOnExit)
-    (binding [circleci.test.report/*reporters* [(junit/reporter (str tempdir))]]
+    (binding [circleci.test.report/*reporters* [(junit/reporter {:test-results-dir (str tempdir)})]]
       (is (map? (circleci.test/run-tests 'circleci.test-config))))))
