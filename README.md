@@ -55,14 +55,12 @@ putting this in your `dev-resources/circleci_test/config.clj` file:
 ```clj
 (require '[circleci.test.report.junit :as junit])
 
-{:reporters [(circleci.test.report/clojure-test-reporter)
-             (junit/reporter "target/test-results")]}
+{:test-results-dir "target/test-results"
+ :reporters [circleci.test.report/clojure-test-reporter
+             junit/reporter]}
 ```
 
-Unlike `clojure.test`, you can use more than one reporter at a time. The
-argument to the `junit/reporter` function indicates which directory you
-want your test output in. It's best to ignore this directory in your version
-control system configuration.
+Unlike `clojure.test`, you can use more than one reporter at a time. It's recommended to add your `:test-results-dir` to the ignore list of your version control system.
 
 If you use the junit test reporter, you can run `circleci.test.retest/-main`
 to re-run only the set of tests which previously failed.

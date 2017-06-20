@@ -1,7 +1,8 @@
 (ns circleci.test
   (:require [circleci.test.report :as report]
             [clojure.test :as test]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io])
+  (:import (clojure.lang LineNumberingPushbackReader)))
 
 ;; Once fixtures should be run exactly once regardless of which entry-point
 ;; into circleci.test is used
@@ -23,10 +24,13 @@
 ;; dummy once-fixture.
 (def ^:dynamic *once-fixtures* {})
 
+(def ^:private default-config {:test-results-dir "test-results"})
+
 (defn- read-config! []
-  (if-let [r (io/resource "circleci_test/config.clj")]
-    (load-reader (clojure.lang.LineNumberingPushbackReader. (io/reader r)))
-    {}))
+  (let [config (if-let [r (io/resource "circleci_test/config.clj")]
+                 (load-reader (LineNumberingPushbackReader. (io/reader r)))
+                 {})]
+    (merge default-config config)))
 
 (defn- make-once-fixture-fn
   [ns]

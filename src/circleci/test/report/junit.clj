@@ -113,5 +113,4 @@
   "Create a TestReporter that writes Junit compatible XML reports to
   `out-dir`."
   [config]
-  (->JunitReporter (:test-results-dir config "test-results")
-                   (atom []) (atom [])))
+  (->JunitReporter (:test-results-dir config) (atom []) (atom [])))
