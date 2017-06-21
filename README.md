@@ -6,7 +6,7 @@ Keep your existing `deftest`s, but gain flexibility around how you run them.
 
 ## Usage
 
-Add `[circleci/circleci.test "0.2.0"]` to your dev dependencies.
+Add `[circleci/circleci.test "0.3.0"]` to your dev dependencies.
 
 Run specific test namespaces with `lein run -m circleci.test my.first.test.ns my.second.test.ns`.
 
