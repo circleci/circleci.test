@@ -6,7 +6,7 @@
 (defn- failed-tests-from [root]
   (let [suite (:name (:attrs root))]
     (for [test-case (:content root)
-          :when (some #(= :failure (:tag %)) (:content test-case))]
+          :when (some #(#{:failure :error} (:tag %)) (:content test-case))]
       (symbol suite (:name (:attrs test-case))))))
 
 (def ^:private missing-junit-msg
