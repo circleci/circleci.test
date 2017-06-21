@@ -6,5 +6,6 @@
   :pedantic? :abort
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/data.xml "0.0.8"]]
-  :aliases {"test" ["run" "-m" "circleci.test/dir" :project/test-paths]}
+  :aliases {"test" ["run" "-m" "circleci.test/dir" :project/test-paths]
+            "retest" ["run" "-m" "circleci.test.retest"]}
   :profiles {:uberjar {:aot :all}})

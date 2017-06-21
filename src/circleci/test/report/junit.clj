@@ -112,5 +112,5 @@
 (defn reporter
   "Create a TestReporter that writes Junit compatible XML reports to
   `out-dir`."
-  [out-dir]
-  (->JunitReporter out-dir (atom []) (atom [])))
+  [config]
+  (->JunitReporter (:test-results-dir config) (atom []) (atom [])))

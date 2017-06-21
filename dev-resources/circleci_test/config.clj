@@ -5,9 +5,9 @@
 
 {:selectors {:all (constantly true)
              :default (complement :failing)}
- :reporters [(clojure-test-reporter)
-             (junit/reporter (or (System/getenv "CIRCLE_TEST_REPORTS")
-                                 "test-results"))]
+ :test-results-dir (or (System/getenv "CIRCLE_TEST_REPORTS")
+                       "test-results")
+ :reporters [clojure-test-reporter junit/reporter]
  :global-fixture (fn [f]
                    (assert (not *inside-global*))
                    (binding [*inside-global* true]

@@ -1,7 +1,8 @@
 (ns circleci.test
   (:require [circleci.test.report :as report]
             [clojure.test :as test]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io])
+  (:import (clojure.lang LineNumberingPushbackReader)))
 
 ;; Once fixtures should be run exactly once regardless of which entry-point
 ;; into circleci.test is used
@@ -23,10 +24,14 @@
 ;; dummy once-fixture.
 (def ^:dynamic *once-fixtures* {})
 
-(defn- read-config! []
-  (if-let [r (io/resource "circleci_test/config.clj")]
-    (load-reader (clojure.lang.LineNumberingPushbackReader. (io/reader r)))
-    {}))
+(def ^:private default-config {:test-results-dir "test-results"
+                               :reporters [report/clojure-test-reporter]})
+
+(defn read-config! []
+  (let [config (if-let [r (io/resource "circleci_test/config.clj")]
+                 (load-reader (LineNumberingPushbackReader. (io/reader r)))
+                 {})]
+    (merge default-config config)))
 
 (defn- make-once-fixture-fn
   [ns]
@@ -52,6 +57,11 @@
         (global-fixture f)))))
 
 ;; Running tests; low-level fns
+
+(defn- get-reporters [config]
+  (or report/*reporters*
+      (for [make-reporter (:reporters config)]
+        (make-reporter config))))
 
 (defn- nanos->seconds
   [nanos]
@@ -105,7 +115,7 @@
    ;; entrypoints into the test runner
    (binding [test/test-var (partial test-var* config)
              test/report report/report
-             report/*reporters* (:reporters config report/*reporters*)]
+             report/*reporters* (get-reporters config)]
      (test-var* config v))))
 
 
@@ -129,7 +139,7 @@
   ([ns selector config]
    (binding [test/*report-counters* (ref test/*initial-report-counters*)
              test/report report/report
-             report/*reporters* (:reporters config report/*reporters*)]
+             report/*reporters* (get-reporters config)]
      (let [ns-obj (the-ns ns)
            global-fixture-fn (make-global-fixture config)
            once-fixture-fn (once-fixtures ns-obj)]

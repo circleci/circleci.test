@@ -81,15 +81,14 @@
 
   (end-test-var [this m]))
 
-(defn clojure-test-reporter
-  []
+(defn clojure-test-reporter [_config]
   (->ClojureDotTestReporter))
 
 (def ^:dynamic *reporters*
   "The sequence of currently configured test reporters. Consumers of the
   circleci.test library should not bind this var, set the :reporters key in
   test runner config instead."
-  [(clojure-test-reporter)])
+  nil)
 
 ;; Test result reporting
 (defmulti
