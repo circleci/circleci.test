@@ -10,9 +10,12 @@ Add `[circleci/circleci.test "0.2.0"]` to your dev dependencies.
 
 Run specific test namespaces with `lein run -m circleci.test my.first.test.ns my.second.test.ns`.
 
+Run all loaded test namespaces from a repl with `(circleci.test/run-tests)` or
+pass in a list of symbols to just test a few namespaces.
+
 Run individiual tests from a repl with `(circleci.test/test-var #'my.test.ns/my-test)`.
 
-Alternatively you can add a Leiningen alias to test your whole test directory:
+It's more convenient to a Leiningen alias to test your whole test directory:
 
 ```clj
 :aliases {"test" ["run" "-m" "circleci.test/dir" :project/test-paths]}
@@ -40,7 +43,7 @@ selector functions in `dev-resources/circleci_test/config.clj`:
              :default (complement :flaky)}}
 ```
 
-If you have the `circleci.test/dir` alias set up as per above, you can pass
+If you have the Leiningen `:aliases` set up as per above, you can pass
 in a test selector as a command-line argument:
 
     $ lein test :acceptance
@@ -60,10 +63,13 @@ putting this in your `dev-resources/circleci_test/config.clj` file:
              junit/reporter]}
 ```
 
-Unlike `clojure.test`, you can use more than one reporter at a time. It's recommended to add your `:test-results-dir` to the ignore list of your version control system.
+Unlike `clojure.test`, you can use more than one reporter at a time. It's
+recommended to add your `:test-results-dir` directory to the ignored list of
+your version control system.
 
-If you use the junit test reporter, you can run `circleci.test.retest/-main`
-to re-run only the set of tests which previously failed. Adding an alias in `project.clj` is recommended:
+If you use the junit test reporter, you can run `circleci.test.retest/-main` to
+re-run only the set of tests which previously failed. Adding an alias in
+`project.clj` is recommended:
 
 ```clj
 :aliases {"test" ["run" "-m" "circleci.test/dir" :project/test-paths]
@@ -89,7 +95,10 @@ running all tests that exist on disk.
 
 ### Global fixtures
 
-In addition to `:once` and `:each` fixtures from `clojure.test`, you can define global fixtures that are only run once for the entire test run, no matter how many namespaces you run. This should be declared in your config file rather in any one individual test file though; otherwise it may not get loaded:
+In addition to `:once` and `:each` fixtures from `clojure.test`, you can define
+global fixtures that are only run once for the entire test run, no matter how
+many namespaces you run. This should be declared in your config file rather in
+any one individual test file though; otherwise it may not get loaded:
 
 ```clj
 {:global-fixture (fn [f]
@@ -171,13 +180,16 @@ and will not work with code that assumes it has control of that class.
 ## Design goals
 
 #### Compatibility with tests written using `clojure.test`
+
 Don't force people to re-write tests just to use a different test runner.
 
-Maintain compatibility with the `clojure.test` assertion expansions such as [slingshot.test](https://github.com/scgilardi/slingshot/blob/release/src/slingshot/test.clj)
+Maintain compatibility with the `clojure.test` assertion expansions such as
+[slingshot.test](https://github.com/scgilardi/slingshot/blob/release/src/slingshot/test.clj)
 
 #### Extensible test reporting
-Must be possible to use more than one test reporter at a time, for instance it's desirable to produce Junit XML and console output during a test run.
 
+Must be possible to use more than one test reporter at a time, for instance it's
+desirable to produce Junit XML and console output during a test run.
 
 ## License
 
