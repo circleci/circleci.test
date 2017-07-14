@@ -1,4 +1,4 @@
-(defproject circleci/circleci.test "0.3.1-SNAPSHOT"
+(defproject circleci/circleci.test "0.3.1"
   :description "clojure.test compatible test-runner"
   :url "https://github.com/circleci/circleci.test"
   :license {:name "Eclipse Public License"
@@ -7,5 +7,6 @@
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/data.xml "0.0.8"]]
   :aliases {"test" ["run" "-m" "circleci.test/dir" :project/test-paths]
+            "tests" ["run" "-m" "circleci.test"]
             "retest" ["run" "-m" "circleci.test.retest"]}
   :profiles {:uberjar {:aot :all}})

@@ -1,7 +1,8 @@
 # Changes
 
-## 0.3.1: ???
+## 0.3.1: 2017-07-14
 
+* Fix a bug where unknown selectors would be silently ignored.
 * Fix a bug where retest would not retest errors, only failures.
 
 ## 0.3.0: 2017-06-21

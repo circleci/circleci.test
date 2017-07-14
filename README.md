@@ -6,22 +6,23 @@ Keep your existing `deftest`s, but gain flexibility around how you run them.
 
 ## Usage
 
-Add `[circleci/circleci.test "0.3.0"]` to your dev dependencies.
+Add `[circleci/circleci.test "0.3.1"]` to your `:dependencies` under `:dev`.
 
-Run specific test namespaces with `lein run -m circleci.test my.first.test.ns my.second.test.ns`.
-
-Run all loaded test namespaces from a repl with `(circleci.test/run-tests)` or
-pass in a list of symbols to just test a few namespaces.
-
-Run individiual tests from a repl with `(circleci.test/test-var #'my.test.ns/my-test)`.
-
-It's more convenient to a Leiningen alias to test your whole test directory:
+It's recommended to use this set of Leiningen aliases:
 
 ```clj
-:aliases {"test" ["run" "-m" "circleci.test/dir" :project/test-paths]}
+:aliases {"test" ["run" "-m" "circleci.test/dir" :project/test-paths]
+          "tests" ["run" "-m" "circleci.test"]
+          "retest" ["run" "-m" "circleci.test.retest"]}
 ```
 
-This will replace Leiningen's built-in `test` task with this one.
+You can pass a selector to `lein test` (see below) or run just a list of
+individual tests with `lein tests my.test.ns my.other.test.ns`.
+
+From inside a repl, you can run all loaded test namespaces with
+`(circleci.test/run-tests)` or pass in a list of symbols to just test a few
+namespaces. Run individiual tests with `(circleci.test/test-var
+#'my.test.ns/my-test)`.
 
 ### Selectors
 
