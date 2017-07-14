@@ -193,7 +193,8 @@
 
 (defn- lookup-selector [config selector-name]
   (let [selectors (:selectors config {:default identity})]
-    (or (get selectors selector-name) selector-name)))
+    (or (get selectors selector-name)
+        (throw (Exception. (str "Selector not found: " selector-name))))))
 
 (defn- read-args [config raw-args]
   (let [args (map read-string raw-args)]
@@ -229,5 +230,5 @@
   (let [config (read-config!)
         [selector & nses] (read-args config raw-args)
         _ (apply require :reload nses)
-        summary (apply run-selected-tests selector nses config)]
+        summary (run-selected-tests selector nses config)]
     (System/exit (+ (:error summary) (:fail summary)))))
