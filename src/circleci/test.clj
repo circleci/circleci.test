@@ -119,10 +119,14 @@
      (test-var* config v))))
 
 
+(defn- get-all-vars [config ns selector]
+  (for [v (vals (ns-interns ns))
+        :when (and (:test (meta v)) (selector (meta v)))]
+    v))
+
 (defn- test-all-vars [config ns selector]
-  (doseq [v (vals (ns-interns ns))]
-    (when (and (:test (meta v)) (selector (meta v)))
-      (test-var v config))))
+  (doseq [v (get-all-vars config ns selector)]
+    (test-var v config)))
 
 (defn test-ns
   "The entry-poing into circleci.test for running all tests in a namespace.
@@ -141,8 +145,11 @@
              test/report report/report
              report/*reporters* (get-reporters config)]
      (let [ns-obj (the-ns ns)
+           run-once-fixture? (seq (get-all-vars config ns selector))
            global-fixture-fn (make-global-fixture config)
-           once-fixture-fn (once-fixtures ns-obj)]
+           once-fixture-fn (if run-once-fixture?
+                             (once-fixtures ns-obj)
+                             (fn [f] ((make-once-fixture-fn ns) f)))]
        (global-fixture-fn
         (fn []
           (once-fixture-fn
