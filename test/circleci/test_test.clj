@@ -158,6 +158,12 @@
     (swap! counter inc)
     (f)))
 
+(defn throwing-fixture
+  [exception]
+  (fn [f]
+    (throw exception)
+    (f)))
+
 
 ;; Dummy ns for testing once fixtures
 (in-ns 'circleci.test.test-ns)
@@ -224,3 +230,26 @@
                   (filter #(-> % :type (= :end-test-ns)))
                   count))
         "Should pass")))
+
+(deftest fixture-exceptions-are-reported-as-test-errors-from-test-ns
+  (testing "once fixtures"
+    (let [reports (atom [])
+          exception (doto (Exception. "test exception from fixture")
+                          (.setStackTrace (into-array StackTraceElement [])))
+          test-ns (find-ns 'circleci.test.test-ns)
+          _ (alter-meta! test-ns
+                         assoc ::clojure.test/once-fixtures
+                               [(throwing-fixture exception)])]
+      (binding [report/report (tracking-report reports)]
+        (t/test-ns test-ns (complement :integration)))
+
+      (is (= #{{:type :error
+                :message "Exception thrown from test fixture."
+                :file nil
+                :line nil
+                :expected nil
+                :actual exception}}
+             (->> @reports
+                  (filter #(-> % :type (= :error)))
+                  set))
+          "Should pass"))))

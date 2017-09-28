@@ -89,7 +89,7 @@
                (once-fixture-fn
                 (fn []
                   (each-fixture-fn (fn [] (test* v)))))))
-            (catch Throwable e
+            (catch Exception e
               (test/do-report {:type :error,
                                :message "Uncaught exception, not in assertion."
                                :expected nil, :actual e}))
@@ -129,7 +129,7 @@
     (test-var v config)))
 
 (defn test-ns
-  "The entry-poing into circleci.test for running all tests in a namespace.
+  "The entry-point into circleci.test for running all tests in a namespace.
 
   If the namespace defines a function named test-ns-hook, calls that.
   Otherwise, calls test-all-vars on the namespace.  'ns' is a
@@ -150,18 +150,28 @@
            once-fixture-fn (if run-once-fixture?
                              (once-fixtures ns-obj)
                              (fn [f] ((make-once-fixture-fn ns) f)))]
-       (global-fixture-fn
-        (fn []
-          (once-fixture-fn
+       (try
+         (global-fixture-fn
            (fn []
-             (test/do-report {:type :begin-test-ns, :ns ns-obj})
-             ;; If the namespace has a test-ns-hook function, call that:
-             (if-let [v (find-var (symbol (str (ns-name ns-obj))
-                                          "test-ns-hook"))]
-               ((var-get v))
-               ;; Otherwise, just test every var in the namespace.
-               (test-all-vars config ns-obj selector))
-             (test/do-report {:type :end-test-ns, :ns ns-obj}))))))
+             (once-fixture-fn
+               (fn []
+                 (test/do-report {:type :begin-test-ns, :ns ns-obj})
+                 ;; If the namespace has a test-ns-hook function, call that:
+                 (if-let [v (find-var (symbol (str (ns-name ns-obj))
+                                              "test-ns-hook"))]
+                   ((var-get v))
+                   ;; Otherwise, just test every var in the namespace.
+                   (test-all-vars config ns-obj selector))))))
+         (catch Exception e
+           (binding [test/*testing-vars*
+                     (conj test/*testing-vars* (with-meta 'test
+                                                          {:name "Exception thrown from test fixture"
+                                                           :ns ns-obj}))]
+             (test/do-report {:type :error,
+                              :message "Exception thrown from test fixture."
+                              :expected nil, :actual e})))
+         (finally
+           (test/do-report {:type :end-test-ns, :ns ns-obj}))))
      @test/*report-counters*)))
 
 
