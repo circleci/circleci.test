@@ -177,6 +177,11 @@ and will not work with code that assumes it has control of that class.
   can't be worked around without forcing use of a different `deftest`
   implementation.
 
+## Code Coverage support
+
+You can get code coverage support while using this library by using
+version 1.0.10 or higher of [Cloverage](https://github.com/cloverage/cloverage)
+specifying `circleci.test` as your test runner.
 
 ## Design goals
 
