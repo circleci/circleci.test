@@ -1,5 +1,11 @@
 # Changes
 
+## 0.4.0: 2017-11-02
+
+* Add support for Cloverage; use `--runner circleci.test`.
+* Report on Exceptions thrown from fixtures.
+* Skip running a namespace's fixtures when no tests are run.
+
 ## 0.3.1: 2017-07-14
 
 * Fix a bug where unknown selectors would be silently ignored.
