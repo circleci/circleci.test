@@ -102,7 +102,9 @@ many namespaces you run. This should be declared in your config file rather in
 any one individual test file though; otherwise it may not get loaded:
 
 ```clj
+(require '[clojure.spec.test.alpha :as stest])
 {:global-fixture (fn [f]
+                   (stest/instrument)
                    (myapp.db/migrate)
                    (f))}
 ```
