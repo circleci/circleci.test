@@ -33,10 +33,13 @@
   (begin-test-var [this m])
   (end-test-var [this m]))
 
+(def ^:dynamic *debug* (boolean (System/getenv "DEBUG")))
+
 (deftype ClojureDotTestReporter []
   TestReporter
   (default [this m]
-    (test/with-test-out (prn m)))
+    (when *debug*
+      (test/with-test-out (prn m))))
 
   (pass [this m]
     (test/with-test-out (test/inc-report-counter :pass)))
