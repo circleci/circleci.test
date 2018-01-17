@@ -6,7 +6,7 @@ Keep your existing `deftest`s, but gain flexibility around how you run them.
 
 ## Usage
 
-Add `[circleci/circleci.test "0.3.1"]` to your `:dependencies` under `:dev`.
+Add `[circleci/circleci.test "0.4.1"]` to your `:dependencies` under `:dev`.
 
 It's recommended to use this set of Leiningen aliases:
 
@@ -21,8 +21,7 @@ individual tests with `lein tests my.test.ns my.other.test.ns`.
 
 From inside a repl, you can run all loaded test namespaces with
 `(circleci.test/run-tests)` or pass in a list of symbols to just test a few
-namespaces. Run individiual tests with `(circleci.test/test-var
-#'my.test.ns/my-test)`.
+namespaces. Run individiual tests with `(circleci.test/test-var #'my.test.ns/my-test)`.
 
 ### Selectors
 
@@ -201,7 +200,7 @@ desirable to produce Junit XML and console output during a test run.
 
 ## License
 
-Copyright © 2017 Circle Internet Services
+Copyright © 2017-2018 Circle Internet Services and contributors
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.

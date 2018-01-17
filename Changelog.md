@@ -1,5 +1,9 @@
 # Changes
 
+## 0.4.1: 2018-01-17
+
+* Suppress noisy generative testing debug output.
+
 ## 0.4.0: 2017-11-02
 
 * Add support for Cloverage; use `--runner circleci.test`.
