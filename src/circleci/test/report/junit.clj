@@ -1,9 +1,11 @@
 (ns circleci.test.report.junit
   "Junit reporter for circleci.test"
   (:require [clojure.data.xml :as xml]
-            [clojure.data.xml.node :refer [element?]]
             [clojure.java.io :as io]
             [circleci.test.report :as report]))
+
+(defn- element? [el]
+  (and (map? el) (some? (:tag el))))
 
 (defn- stacktrace->string
   "given an exception, returns the result of printStackTrace as a string"

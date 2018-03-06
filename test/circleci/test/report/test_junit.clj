@@ -1,6 +1,5 @@
 (ns circleci.test.report.test-junit
   (:require [clojure.test :refer (deftest testing is)]
-            [clojure.data.xml.node :refer [element?]]
             circleci.test
             circleci.test.report
             [circleci.test.report.junit :as junit])
@@ -8,13 +7,13 @@
            java.nio.file.attribute.FileAttribute))
 
 (deftest failure-works
-  (is (element? (#'junit/failure-xml
-                 {:expected (= 3 (+ 1 1)),
-                  :message nil,
-                  :type :fail,
-                  :actual (not (= 3 2)),
-                  :file "test_junit.clj",
-                  :line 8}))))
+  (is (#'junit/element? (#'junit/failure-xml
+                         {:expected (= 3 (+ 1 1)),
+                          :message nil,
+                          :type :fail,
+                          :actual (not (= 3 2)),
+                          :file "test_junit.clj",
+                          :line 8}))))
 
 (deftest testcase-works
   (let [ret (#'junit/testcase-xml {:type :end-test-var
@@ -27,12 +26,12 @@
                                     :actual (not (= 3 2)),
                                     :file "test_junit.clj",
                                     :line 8}))]
-    (is (element? ret))
+    (is (#'junit/element? ret))
     (testing "it has a time"
       (is (-> ret :attrs :time float?)))))
 
 (deftest testsuite-works
-  (is (element?
+  (is (#'junit/element?
        (#'junit/suite-xml {:ns (find-ns 'clojure.core)}
                           [(#'junit/testcase-xml {:type :end-test-var
                                                   :name #'clojure.core/map
