@@ -182,7 +182,11 @@ and will not work with code that assumes it has control of that class.
 
 You can get code coverage support while using this library by using
 version 1.0.10 or higher of [Cloverage](https://github.com/cloverage/cloverage)
-specifying `circleci.test` as your test runner.
+specifying `circleci.test` as your test runner, like so:
+
+```
+lein cloverage --runner circleci.test
+```
 
 ## Design goals
 
