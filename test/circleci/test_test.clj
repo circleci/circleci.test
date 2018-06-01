@@ -166,8 +166,8 @@
 
 
 ;; Dummy ns for testing once fixtures
-(in-ns 'circleci.test.test-ns)
-(clojure.core/require '[clojure.test :refer (deftest is)])
+(ns circleci.test.test-ns
+  (:require [clojure.test :refer (deftest is)]))
 
 (deftest dummy-test
   (is 1 "Should pass"))
@@ -253,3 +253,23 @@
                   (filter #(-> % :type (= :error)))
                   set))
           "Should pass"))))
+
+(ns circleci.test.precondition-test
+  (:require [clojure.test :refer (deftest is)]))
+
+(defn must-be-even!!! [f]
+  {:pre [(even? f)]}
+  true)
+
+(deftest is-even
+  (is (must-be-even!!! 2))
+  (is (not (must-be-even!!! 1))))
+
+(in-ns 'circleci.test-test)
+
+(deftest assertion-errors-dont-sneak-thru
+  (let [reports (atom [])]
+    (binding [report/report (tracking-report reports)]
+      (run-tests 'circleci.test.precondition-test))
+    (is (= 1 (count (:error (group-by :type @reports)))) "Should pass")
+    (is (= 1 (count (:pass (group-by :type @reports)))) "Should pass")))
