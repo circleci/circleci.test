@@ -29,7 +29,8 @@
 
 (defn read-config! []
   (let [config (if-let [r (io/resource "circleci_test/config.clj")]
-                 (load-reader (LineNumberingPushbackReader. (io/reader r)))
+                 (with-open [rdr (LineNumberingPushbackReader. (io/reader r))]
+                  (load-reader rdr))
                  {})]
     (merge default-config config)))
 
