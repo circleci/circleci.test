@@ -210,7 +210,8 @@
   ([re] (apply run-tests (filter #(re-matches re (name (ns-name %))) (all-ns)))))
 
 (defn- lookup-selector [config selector-name]
-  (let [selectors (:selectors config {:default identity})]
+  (let [selectors (merge {:default identity}
+                         (:selectors config))]
     (or (get selectors selector-name)
         (throw (Exception. (str "Selector not found: " selector-name))))))
 

@@ -90,6 +90,17 @@
 (deftest #^{:has-meta true} can-add-metadata-to-tests
   (is (:has-meta (meta #'can-add-metadata-to-tests)) "Should pass"))
 
+(deftest lookup-selector-supplies-default
+  (is (= identity
+         (#'t/lookup-selector {:selectors {:foo :integration}}
+                              :default))
+      "Should pass")
+
+  (is (= :user-default
+         (#'t/lookup-selector {:selectors {:foo :integration :default :user-default}}
+                              :default))
+      "Should pass"))
+
 ;; still have to declare the symbol before testing unbound symbols
 (declare does-not-exist)
 
