@@ -1,5 +1,9 @@
 # Changes
 
+## 0.4.2: 2019-02-22
+
+* Supply a default test selector if it is missing from config.
+
 ## 0.4.1: 2018-01-17
 
 * Suppress noisy generative testing debug output.
