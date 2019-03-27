@@ -160,7 +160,8 @@ In this case only `deftest` forms with `^:io` or `^:network` selector tags
 will not have that restriction applied.
 
 This feature sets the JVM's [SecurityManager](https://docs.oracle.com/javase/8/docs/api/java/lang/SecurityManager.html)
-and will not work with code that assumes it has control of that class.
+for the duration of each test, and will not work when testing code that sets or
+otherwise assumes it has control of the system `SecurityManager`.
 
 ## Differences from `clojure.test`
 * supports more than one test reporter at a time
