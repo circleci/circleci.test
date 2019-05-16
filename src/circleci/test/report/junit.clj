@@ -2,6 +2,8 @@
   "Junit reporter for circleci.test"
   (:require [clojure.data.xml :as xml]
             [clojure.java.io :as io]
+            [clojure.string :as string]
+            [clojure.test :as test]
             [circleci.test.report :as report])
   (:import clojure.data.xml.Element))
 
@@ -71,7 +73,17 @@
 (defn- failure-xml
   [m]
   (xml/sexp-as-element [:failure {:type "assertion failure"
-                                  :message (format "expected: %s. actual: %s" (:expected m) (:actual m))} ""]))
+                                  :message
+                                  (string/join \newline
+                                               (filter
+                                                 some?
+                                                 [(format "FAIL in %s" (report/testing-vars-str m))
+                                                  (when (seq test/*testing-contexts*)
+                                                    (report/testing-contexts-str))
+                                                  (when-let [message (:message m)]
+                                                    message)
+                                                  (format "expected: %s" (pr-str (:expected m)))
+                                                  (format "  actual: %s" (pr-str (:actual m)))]))}]))
 
 (defn- error-xml
   [m]
