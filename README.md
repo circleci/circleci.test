@@ -108,6 +108,18 @@ any one individual test file though; otherwise it may not get loaded:
                    (f))}
 ```
 
+The global fixture must return the return value of `f`. If you need to do a teardown step you must do something like this:
+
+```clj
+(require '[clojure.spec.test.alpha :as stest])
+{:global-fixture (fn [f]
+                   (stest/instrument)
+                   (myapp.db/migrate)
+                   (let [results (f)]
+                     (teardown)
+                     results))}
+```
+
 ### Test Isolation
 
 Clojure codebases that follow functional programming techniques should follow
