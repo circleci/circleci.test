@@ -223,7 +223,7 @@
 
 (defn- nses-in-directories [dirs]
   (for [dir dirs f (file-seq (io/file dir))
-        :when (re-find #"\.clj$" (str f))]
+        :when (re-find #"\.cljc?$" (str f))]
     (second (read-string (slurp f)))))
 
 (defn dir
