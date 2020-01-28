@@ -6,7 +6,7 @@ Keep your existing `deftest`s, but gain flexibility around how you run them.
 
 ## Usage
 
-Add `[circleci/circleci.test "0.4.2"]` to your `:dependencies` under `:dev`.
+Add `[circleci/circleci.test "0.4.3"]` to your `:dependencies` under `:dev`.
 
 It's recommended to use this set of Leiningen aliases:
 
@@ -205,7 +205,7 @@ desirable to produce Junit XML and console output during a test run.
 
 ## License
 
-Copyright © 2017-2019 Circle Internet Services and contributors
+Copyright © 2017-2020 Circle Internet Services and contributors
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
