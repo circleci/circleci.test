@@ -33,8 +33,8 @@
 (defn- testcase-elapsed
   [testcases]
   (->> testcases
-       (map (comp :time :attrs))
-       (reduce +)))
+       (keep (comp :time :attrs))
+       (apply +)))
 
 (defn- suite-xml
   [m testcases]
