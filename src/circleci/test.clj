@@ -183,7 +183,10 @@
                  ;; If the namespace has a test-ns-hook function, call that:
                  (if-let [v (find-var (symbol (str (ns-name ns-obj))
                                               "test-ns-hook"))]
-                   ((var-get v))
+                   (with-unmarking ns
+                     (fn [a-var] (-> a-var meta selector))
+                     ((var-get v)))
+
                    ;; Otherwise, just test every var in the namespace.
                    (test-all-vars config ns-obj selector))))))
          (catch Exception e
