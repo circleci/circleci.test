@@ -1,6 +1,7 @@
 (ns circleci.test
   (:require [circleci.test.report :as report]
             [clojure.test :as test]
+            [clojure.string :as cs]
             [clojure.java.io :as io])
   (:import (clojure.lang LineNumberingPushbackReader)))
 
@@ -125,9 +126,31 @@
         :when (and (:test (meta v)) (selector (meta v)))]
     v))
 
+
 (defn- test-all-vars [config ns selector]
   (doseq [v (get-all-vars config ns selector)]
     (test-var v config)))
+
+
+(defn copy-meta
+  [v from-key to-key]
+  (if-let [x (get (meta v) from-key)]
+    (alter-meta! v #(-> % (assoc to-key x) (dissoc from-key)))))
+
+
+(defmacro with-unmarking
+  [ns var-selector & body]
+  `(let [vars# (vals (ns-interns ~ns))]
+     (try
+       (doseq [a-var# vars#]
+         (when (and (:test (meta a-var#))
+                    (not (~var-selector a-var#)))
+           (copy-meta a-var# :test ::skipped-test)))
+       ~@body
+       (finally
+         (doseq [a-var# vars#]
+           (copy-meta a-var# ::skipped-test :test))))))
+
 
 (defn test-ns
   "The entry-point into circleci.test for running all tests in a namespace.
@@ -176,6 +199,24 @@
      @test/*report-counters*)))
 
 
+(defn run-selected-var
+  [v selector config]
+  (binding [test/*report-counters* (ref test/*initial-report-counters*)
+            test/report report/report
+            report/*reporters* (get-reporters config)]
+    (let [n (.-ns v)]
+      (if-let [tnv (find-var (symbol (str (ns-name n))
+                                     "test-ns-hook"))]
+        (with-unmarking n
+          (fn [a-var] (and (= a-var v) (-> a-var meta selector)))
+          ((var-get tnv)))
+
+        (when (-> v meta selector)
+          (binding [test/test-var (partial test-var* config)]
+           (test-var* config v)))))
+    @test/*report-counters*))
+
+
 ;; Running tests; high-level fns
 
 (defn- run-selected-tests
@@ -183,12 +224,17 @@
   Defaults to current namespace if none given.  Returns a map
   summarizing test results."
   ([selector] (run-selected-tests selector [*ns*]))
-  ([selector nses] (run-selected-tests selector nses (read-config!)))
-  ([selector nses config]
+  ([selector nses] (run-selected-tests selector nses []))
+  ([selector nses extra-vars] (run-selected-tests selector nses extra-vars (read-config!)))
+  ([selector nses extra-vars config]
    (let [global-fixture-fn (make-global-fixture config)
          summary (global-fixture-fn
-                  #(assoc (apply merge-with + (for [n nses]
-                                                (test-ns n selector config)))
+                  #(assoc (apply merge-with +
+                                 (concat
+                                   (for [n nses]
+                                    (test-ns n selector config))
+                                   (for [v (set extra-vars)]
+                                     (run-selected-var v selector config))))
                           :type :summary))]
      (test/do-report summary)
      summary)))
@@ -247,7 +293,16 @@
   (when (empty? raw-args)
     (throw (ex-info "Must pass a list of namespaces to test" {})))
   (let [config (read-config!)
-        [selector & nses] (read-args config raw-args)
-        _ (apply require :reload nses)
-        summary (run-selected-tests selector nses config)]
+        [selector & nses-or-vars] (read-args config raw-args)
+        {nses false vars true} (group-by #(.contains (str %) "/") nses-or-vars)
+        nses-set (set nses)
+        nses-from-vars (mapv #(symbol (first (cs/split (str %) #"/"))) vars)
+        test-nses (distinct (into nses nses-from-vars))
+        _ (apply require :reload test-nses)
+        extra-vars (keep (fn [v]
+                           (when-let [v (find-var (symbol v))]
+                             (when-not (nses-set (ns-name (.-ns v)))
+                               v)))
+                         vars)
+        summary (run-selected-tests selector nses extra-vars config)]
     (System/exit (+ (:error summary) (:fail summary)))))
