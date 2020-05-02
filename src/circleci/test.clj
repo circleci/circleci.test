@@ -103,6 +103,27 @@
                                  :var v
                                  :elapsed elapsed})))))))))
 
+
+(defn- test-var-with-ns-hook*
+  [config v]
+  (assert (var? v) (format "v must be a var. got %s" (class v)))
+  (let [global-fixture-fn (make-global-fixture config)]
+    (when (:test (meta v))
+      (binding [test/*testing-vars* (conj test/*testing-vars* v)]
+        (let [start-time (System/nanoTime)]
+          (try
+            (global-fixture-fn (fn [] (test* v)))
+            (catch Exception e
+              (test/do-report {:type :error,
+                               :message "Uncaught exception, not in assertion."
+                               :expected nil, :actual e}))
+            (finally
+              (let [stop-time (System/nanoTime)
+                    elapsed (-> stop-time (- start-time) nanos->seconds)]
+                (test/do-report {:type :end-test-var,
+                                 :var v
+                                 :elapsed elapsed})))))))))
+
 (defn test-var
   "The entry-point into circleci.test for running a single test.
 
@@ -129,7 +150,7 @@
 
 
 (defn- test-all-vars [config ns selector]
-  (doseq [v (get-all-vars config ns selector)]
+  (doseq [v (sort-by str (get-all-vars config ns selector))]
     (test-var v config)))
 
 
@@ -139,15 +160,21 @@
     (alter-meta! v #(-> % (assoc to-key x) (dissoc from-key)))))
 
 
-(defmacro with-unmarking
-  [ns var-selector & body]
-  `(let [vars# (vals (ns-interns ~ns))]
+(defmacro select-test-ns-hook
+  "When test-ns-hook is used, select vars based on the selector but
+  don't run once and each fixtures."
+  [ns-hook var-selector config]
+  `(let [ns# (-> ~ns-hook meta :ns)
+         vars# (vals (ns-interns ns#))]
      (try
        (doseq [a-var# vars#]
          (when (and (:test (meta a-var#))
                     (not (~var-selector a-var#)))
            (copy-meta a-var# :test ::skipped-test)))
-       ~@body
+
+       (binding [test/test-var (partial test-var-with-ns-hook* ~config)]
+         ((var-get ~ns-hook)))
+
        (finally
          (doseq [a-var# vars#]
            (copy-meta a-var# ::skipped-test :test))))))
@@ -170,32 +197,33 @@
              test/report report/report
              report/*reporters* (get-reporters config)]
      (let [ns-obj (the-ns ns)
-           run-once-fixture? (seq (get-all-vars config ns selector))
+           ns-hook (find-var (symbol (str (ns-name ns-obj))
+                                     "test-ns-hook"))
+           run-once-fixture? (when-not ns-hook
+                               (seq (get-all-vars config ns selector)))
            global-fixture-fn (make-global-fixture config)
            once-fixture-fn (if run-once-fixture?
                              (make-once-fixture ns-obj)
                              (fn [f] (f)))]
        (try
          (global-fixture-fn
-           (fn []
-             (once-fixture-fn
-               (fn []
-                 (test/do-report {:type :begin-test-ns, :ns ns-obj})
-                 ;; If the namespace has a test-ns-hook function, call that:
-                 (if-let [v (find-var (symbol (str (ns-name ns-obj))
-                                              "test-ns-hook"))]
-                   (with-unmarking ns
-                     (fn [a-var] (-> a-var meta selector))
-                     (binding [test/test-var (partial test-var* config)]
-                       ((var-get v))))
+          (fn []
+            (once-fixture-fn
+             (fn []
+               (test/do-report {:type :begin-test-ns, :ns ns-obj})
+               ;; If the namespace has a test-ns-hook function, call that:
+               (if ns-hook
+                 (select-test-ns-hook ns-hook
+                                      (fn [a-var] (-> a-var meta selector))
+                                      config)
 
-                   ;; Otherwise, just test every var in the namespace.
-                   (test-all-vars config ns-obj selector))))))
+                 ;; Otherwise, just test every var in the namespace.
+                 (test-all-vars config ns-obj selector))))))
          (catch Exception e
            (binding [test/*testing-vars*
                      (conj test/*testing-vars* (with-meta 'test
-                                                          {:name "Exception thrown from test fixture"
-                                                           :ns ns-obj}))]
+                                                 {:name "Exception thrown from test fixture"
+                                                  :ns ns-obj}))]
              (test/do-report {:type :error,
                               :message "Exception thrown from test fixture."
                               :expected nil, :actual e})))
@@ -208,18 +236,19 @@
   (for [n (sort-by str (distinct nses))]
     (test-ns n selector config)))
 
+
+
 (defn test-selected-var
   [v selector config]
   (binding [test/*report-counters* (ref test/*initial-report-counters*)
             test/report report/report
             report/*reporters* (get-reporters config)]
     (let [n (-> v meta :ns)]
-      (if-let [tnv (find-var (symbol (str (ns-name n))
-                                     "test-ns-hook"))]
-        (with-unmarking n
-          (fn [a-var] (and (= a-var v) (-> a-var meta selector)))
-          (binding [test/test-var (partial test-var* config)]
-            ((var-get tnv))))
+      (if-let [ns-hook (find-var (symbol (str (ns-name n))
+                                         "test-ns-hook"))]
+        (select-test-ns-hook ns-hook
+                             (fn [a-var] (and (= a-var v) (-> a-var meta selector)))
+                             config)
 
         (when (-> v meta selector)
           (binding [test/test-var (partial test-var* config)]
@@ -230,10 +259,10 @@
 (defn test-vars-in-ns-groups
   [vars selector config]
   (let [ns-groups (group-by (comp :ns meta) (distinct vars))
-        reports (for [ns (keys ns-groups)]
+        reports (for [ns (sort-by str (keys ns-groups))]
                   (try
                     (test/do-report {:type :begin-test-ns, :ns ns})
-                    (for [v (get ns-groups ns)]
+                    (for [v (sort-by str (get ns-groups ns))]
                       (test-selected-var v selector config))
                     (finally (test/do-report {:type :end-test-ns, :ns ns}))))]
     (apply concat reports)))

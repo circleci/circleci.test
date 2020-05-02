@@ -5,32 +5,26 @@
 (def ^:dynamic veach 0)
 (def ^:dynamic vcommon 0)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; This namespace's tests will fail with the Leiningen test runner ;;
-;; because when there is a test-ns-hook, fixtures are NOT run by   ;;
-;; Leiningen or Clojure.test                                       ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (deftest test-1
   (println "Running: circleci.sample-test-ns1/test-1")
   (is (= 1 1))
-  (is (= 1 veach))
-  (is (= 1 vonce))
-  (is (= 2 vcommon)))
+  (is (zero? veach))
+  (is (zero? vonce))
+  (is (zero? vcommon)))
 
 (deftest test-2
   (println "Running: circleci.sample-test-ns1/test-2")
   (is (= 10 10))
-  (is (= 1 veach))
-  (is (= 1 vonce))
-  (is (= 2 vcommon)))
+  (is (zero? veach))
+  (is (zero? vonce))
+  (is (zero? vcommon)))
 
 (deftest test-3
   (println "Running: circleci.sample-test-ns1/test-3")
   (is (= 109 109))
-  (is (= 1 veach))
-  (is (= 1 vonce))
-  (is (= 2 vcommon)))
+  (is (zero? veach))
+  (is (zero? vonce))
+  (is (zero? vcommon)))
 
 
 (defn test-ns-hook
