@@ -3,7 +3,8 @@
             [clojure.test :as test]
             [clojure.string :as cs]
             [clojure.java.io :as io])
-  (:import (clojure.lang LineNumberingPushbackReader)))
+  (:import (clojure.lang LineNumberingPushbackReader)
+           java.io.FileNotFoundException))
 
 ;; Once fixtures should be run exactly once regardless of which entry-point
 ;; into circleci.test is used
@@ -234,12 +235,12 @@
   ([selector nses extra-vars config]
    (let [global-fixture-fn (make-global-fixture config)
          summary (global-fixture-fn
-                  #(assoc (apply merge-with +
+                  #(assoc (apply merge-with + {:pass 0 :fail 0 :error 0}
                                  (concat
-                                   (for [n nses]
+                                  (for [n (distinct nses)]
                                     (test-ns n selector config))
-                                   (for [v (set extra-vars)]
-                                     (run-selected-var v selector config))))
+                                  (for [v (distinct extra-vars)]
+                                    (run-selected-var v selector config))))
                           :type :summary))]
      (test/do-report summary)
      summary)))
@@ -303,11 +304,15 @@
         nses-set (set nses)
         nses-from-vars (mapv #(symbol (first (cs/split (str %) #"/"))) vars)
         test-nses (distinct (into nses nses-from-vars))
-        _ (apply require :reload test-nses)
+        whole-nses (filterv (fn [ns]
+                                 (try (require :reload ns)
+                                      (nses-set ns)
+                                      (catch FileNotFoundException _)))
+                            test-nses)
         extra-vars (keep (fn [v]
                            (when-let [v (find-var (symbol v))]
                              (when-not (nses-set (ns-name (.-ns v)))
                                v)))
                          vars)
-        summary (run-selected-tests selector nses extra-vars config)]
+        summary (run-selected-tests selector whole-nses extra-vars config)]
     (System/exit (+ (:error summary) (:fail summary)))))
