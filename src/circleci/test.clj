@@ -203,13 +203,17 @@
            (test/do-report {:type :end-test-ns, :ns ns-obj}))))
      @test/*report-counters*)))
 
+(defn test-nses
+  [nses selector config]
+  (for [n (sort-by str (distinct nses))]
+    (test-ns n selector config)))
 
-(defn run-selected-var
+(defn test-selected-var
   [v selector config]
   (binding [test/*report-counters* (ref test/*initial-report-counters*)
             test/report report/report
             report/*reporters* (get-reporters config)]
-    (let [n (.-ns v)]
+    (let [n (-> v meta :ns)]
       (if-let [tnv (find-var (symbol (str (ns-name n))
                                      "test-ns-hook"))]
         (with-unmarking n
@@ -219,8 +223,20 @@
 
         (when (-> v meta selector)
           (binding [test/test-var (partial test-var* config)]
-           (test-var* config v)))))
+            (test-var* config v)))))
     @test/*report-counters*))
+
+
+(defn test-vars-in-ns-groups
+  [vars selector config]
+  (let [ns-groups (group-by (comp :ns meta) (distinct vars))
+        reports (for [ns (keys ns-groups)]
+                  (try
+                    (test/do-report {:type :begin-test-ns, :ns ns})
+                    (for [v (get ns-groups ns)]
+                      (test-selected-var v selector config))
+                    (finally (test/do-report {:type :end-test-ns, :ns ns}))))]
+    (apply concat reports)))
 
 
 ;; Running tests; high-level fns
@@ -231,19 +247,23 @@
   summarizing test results."
   ([selector] (run-selected-tests selector [*ns*]))
   ([selector nses] (run-selected-tests selector nses []))
-  ([selector nses extra-vars] (run-selected-tests selector nses extra-vars (read-config!)))
-  ([selector nses extra-vars config]
-   (let [global-fixture-fn (make-global-fixture config)
-         summary (global-fixture-fn
-                  #(assoc (apply merge-with + {:pass 0 :fail 0 :error 0}
-                                 (concat
-                                  (for [n (distinct nses)]
-                                    (test-ns n selector config))
-                                  (for [v (distinct extra-vars)]
-                                    (run-selected-var v selector config))))
-                          :type :summary))]
-     (test/do-report summary)
-     summary)))
+  ([selector nses vars] (run-selected-tests selector nses vars (read-config!)))
+  ([selector nses vars config]
+   (if (and (empty? nses) (empty? vars))
+     (let [summary {:type :summary :pass 0 :fail 0 :error 0 :test 0}]
+       (test/do-report summary)
+       summary)
+
+     (let [global-fixture-fn (make-global-fixture config)
+           summary (global-fixture-fn
+                    #(assoc (apply merge-with + {:pass 0 :fail 0 :error 0 :test 0}
+                                   (into
+                                    (test-nses nses selector config)
+                                    (test-vars-in-ns-groups vars selector config)))
+                            :type :summary))]
+
+       (test/do-report summary)
+       summary))))
 
 (defn run-tests
   "Runs all tests in the given namespaces; prints results.
@@ -294,25 +314,36 @@
          summary (run-selected-tests selector nses)]
      (System/exit (+ (:error summary) (:fail summary))))))
 
+
+(defn segregate-nses-and-vars
+  "Given a list of namespaces and vars, separates them into namespaces
+  which are to be tested fully and individual vars. Also loads all
+  required namespaces."
+  [nses-or-vars]
+  (let [{nses false vars true} (group-by #(cs/includes? (str %) "/") nses-or-vars)
+        nses-set (set nses)
+        nses-from-vars (mapv #(symbol (first (cs/split (str %) #"/"))) vars)
+        test-nses (distinct (into nses nses-from-vars))
+        whole-nses (filterv (fn [ns]
+                              (try (require :reload ns)
+                                   (nses-set ns)
+                                   (catch FileNotFoundException _)))
+                            test-nses)
+        extra-vars (keep (fn [v]
+                           (try
+                             (when-let [v (find-var (symbol v))]
+                               (when-not (-> v meta :ns ns-name nses-set)
+                                 v))
+                             (catch IllegalArgumentException _)))
+                         vars)]
+    [whole-nses extra-vars]))
+
 (defn -main
   [& raw-args]
   (when (empty? raw-args)
     (throw (ex-info "Must pass a list of namespaces to test" {})))
   (let [config (read-config!)
         [selector & nses-or-vars] (read-args config raw-args)
-        {nses false vars true} (group-by #(.contains (str %) "/") nses-or-vars)
-        nses-set (set nses)
-        nses-from-vars (mapv #(symbol (first (cs/split (str %) #"/"))) vars)
-        test-nses (distinct (into nses nses-from-vars))
-        whole-nses (filterv (fn [ns]
-                                 (try (require :reload ns)
-                                      (nses-set ns)
-                                      (catch FileNotFoundException _)))
-                            test-nses)
-        extra-vars (keep (fn [v]
-                           (when-let [v (find-var (symbol v))]
-                             (when-not (nses-set (ns-name (.-ns v)))
-                               v)))
-                         vars)
-        summary (run-selected-tests selector whole-nses extra-vars config)]
+        [nses vars] (segregate-nses-and-vars nses-or-vars)
+        summary (run-selected-tests selector nses vars config)]
     (System/exit (+ (:error summary) (:fail summary)))))
