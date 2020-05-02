@@ -185,7 +185,8 @@
                                               "test-ns-hook"))]
                    (with-unmarking ns
                      (fn [a-var] (-> a-var meta selector))
-                     ((var-get v)))
+                     (binding [test/test-var (partial test-var* config)]
+                       ((var-get v))))
 
                    ;; Otherwise, just test every var in the namespace.
                    (test-all-vars config ns-obj selector))))))
@@ -212,7 +213,8 @@
                                      "test-ns-hook"))]
         (with-unmarking n
           (fn [a-var] (and (= a-var v) (-> a-var meta selector)))
-          ((var-get tnv)))
+          (binding [test/test-var (partial test-var* config)]
+            ((var-get tnv))))
 
         (when (-> v meta selector)
           (binding [test/test-var (partial test-var* config)]
