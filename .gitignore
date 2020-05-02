@@ -10,3 +10,9 @@ pom.xml.asc
 .hgignore
 .hg/
 /test-results/
+dev-resources/weasley/target/
+dev-resources/weasley/.lein-failures
+dev-resources/weasley/test-results/
+dev-resources/weasley/.lein-repl-history
+test_out.txt
+dev-resources/weasley/test_out.txt
