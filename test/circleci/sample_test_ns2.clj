@@ -6,35 +6,29 @@
 (def ^:dynamic vcommon 0)
 (def ^:dynamic level-of-nesting 0)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; This namespace fails on Leiningen tests as Leiningen does not run ;;
-;; each-fixture more than once even when a test calls another        ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
 (deftest test-1
   (when (zero? level-of-nesting)
     (println "Running: circleci.sample-test-ns2/test-1"))
   (is (= 1 1))
-  (is (= (+ level-of-nesting 1) veach))
+  (is (= 1 veach))
   (is (= 1 vonce))
-  (is (= (+ level-of-nesting 2) vcommon)))
+  (is (= 2 vcommon)))
 
 (deftest test-2
   (when (zero? level-of-nesting)
     (println "Running: circleci.sample-test-ns2/test-2"))
   (is (= 10 10))
-  (is (= (+ level-of-nesting 1) veach))
+  (is (= 1 veach))
   (is (= 1 vonce))
-  (is (= (+ level-of-nesting 2) vcommon)))
+  (is (= 2 vcommon)))
 
 (deftest test-3
   (when (zero? level-of-nesting)
     (println "Running: circleci.sample-test-ns2/test-3"))
   (is (= 109 109))
-  (is (= (+ level-of-nesting 1) veach))
+  (is (= 1 veach))
   (is (= 1 vonce))
-  (is (= (+ level-of-nesting 2) vcommon)))
+  (is (= 2 vcommon)))
 
 (deftest ^:combination test-4
   (when (zero? level-of-nesting)
@@ -65,7 +59,6 @@
   (binding [vonce (inc vonce)
             vcommon (inc vcommon)]
     (f)))
-
 
 
 (use-fixtures :each each-fixture)

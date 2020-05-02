@@ -17,14 +17,10 @@
 ;; This means test-var must attempt to run once fixtures each time it is
 ;; invoked.
 ;;
-;; To avoid constantly recalculating once fixtures we map the ns to a
-;; fixture-generating function.
-;; When running once fixtures we look up the fixture generating fn and invoke
-;; it to produce the once-fixtures-fn.
-;; Before invoking the generated once-fixtures-fn we bind a new mapping from
-;; the ns the test var belongs to to a fixture generating fn that produces a
-;; dummy once-fixture.
-(def ^:dynamic *once-fixtures* {})
+;; Keep track of whether for you are inside a form which has already
+;; run the fixture you want. That is, no chain of function calls
+;; should have a fixture twice.
+(def ^:dynamic *fixtures* {})
 
 (def ^:private default-config {:test-results-dir "test-results"
                                :reporters [report/clojure-test-reporter]})
@@ -36,27 +32,31 @@
                  {})]
     (merge default-config config)))
 
-(defn- make-once-fixture-fn
-  [ns]
-  (test/join-fixtures (::test/once-fixtures (meta ns))))
-
-(defn- once-fixtures
+(defn- make-once-fixture
   [ns]
   (fn [f]
-    (let [make-once-fixtures (get *once-fixtures* ns make-once-fixture-fn)]
-      (binding [*once-fixtures* (assoc *once-fixtures*
-                                       ns
-                                       (fn [_]
-                                        (fn [x] (x))))]
-        ((make-once-fixtures ns) f)))))
-
-(def ^:private ^:dynamic *inside-global-fixtures?* false)
-
-(defn make-global-fixture [{:keys [global-fixture]}]
-  (fn [f]
-    (if (or *inside-global-fixtures?* (not global-fixture))
+    (if (get-in *fixtures* [:once ns])
       (f)
-      (binding [*inside-global-fixtures?* true]
+      (binding [*fixtures* (assoc-in *fixtures* [:once ns] true)]
+        (let [fix-fn (test/join-fixtures (::test/once-fixtures (meta ns)))]
+          (fix-fn f))))))
+
+(defn- make-each-fixture
+  [ns]
+  (fn [f]
+    (if (get-in *fixtures* [:each ns])
+      (f)
+      (binding [*fixtures* (assoc-in *fixtures* [:each ns] true)]
+        (let [fix-fn (test/join-fixtures (::test/each-fixtures (meta ns)))]
+          (fix-fn f))))))
+
+(defn make-global-fixture
+  [{:keys [global-fixture]
+    :or {global-fixture (fn [f] (f))}}]
+  (fn [f]
+    (if (get *fixtures* :global)
+      (f)
+      (binding [*fixtures* (assoc *fixtures* :global true)]
         (global-fixture f)))))
 
 ;; Running tests; low-level fns
@@ -81,8 +81,8 @@
   (assert (var? v) (format "v must be a var. got %s" (class v)))
   (let [ns (-> v meta :ns)
         global-fixture-fn (make-global-fixture config)
-        once-fixture-fn (once-fixtures ns)
-        each-fixture-fn (test/join-fixtures (::test/each-fixtures (meta ns)))]
+        once-fixture-fn (make-once-fixture ns)
+        each-fixture-fn (make-each-fixture ns)]
     (when (:test (meta v))
       (binding [test/*testing-vars* (conj test/*testing-vars* v)]
         (let [start-time (System/nanoTime)]
@@ -173,8 +173,8 @@
            run-once-fixture? (seq (get-all-vars config ns selector))
            global-fixture-fn (make-global-fixture config)
            once-fixture-fn (if run-once-fixture?
-                             (once-fixtures ns-obj)
-                             (fn [f] ((make-once-fixture-fn ns) f)))]
+                             (make-once-fixture ns-obj)
+                             (fn [f] (f)))]
        (try
          (global-fixture-fn
            (fn []
