@@ -6,7 +6,8 @@
 {:selectors {:all (constantly true)
              :default (complement :failing)
              :select-vars (fn [m]
-                            (.endsWith (str (:name m)) "-2"))}
+                            (.endsWith (str (:name m)) "-2"))
+             :combination :combination}
  :test-results-dir (or (System/getenv "CIRCLE_TEST_REPORTS")
                        "test-results")
  :reporters [clojure-test-reporter junit/reporter]
