@@ -6,7 +6,7 @@ Keep your existing `deftest`s, but gain flexibility around how you run them.
 
 ## Usage
 
-Add `[circleci/circleci.test "0.4.3"]` to your `:dependencies` under `:dev`.
+Add `[circleci/circleci.test "0.5.0"]` to your `:dependencies` under `:dev`.
 
 It's recommended to use this set of Leiningen aliases:
 
