@@ -50,6 +50,8 @@ in a test selector as a command-line argument:
 
 ### Reporters
 
+#### JUnit
+
 In order to gather metadata about your test runs, you can configure
 `circleci.test` to emit output
 in [JUnit XML format](https://ant.apache.org/manual/Tasks/junitreport.html) by
@@ -74,6 +76,20 @@ re-run only the set of tests which previously failed. Adding an alias in
 ```clj
 :aliases {"test" ["run" "-m" "circleci.test/dir" :project/test-paths]
           "retest" ["run" "-m" "circleci.test.retest"]}
+```
+
+#### CIDER
+
+`circleci.test` by default breaks [CIDER](https://cider.mx) test
+reports. To avoid this, use these settings in your
+`dev-resources/circleci_test/config.clj` to activate the CIDER test
+result adapter:
+
+```clojure
+(require '[circleci.test.report.cider :as cider])
+
+{:reporters [circleci.test.report/clojure-test-reporter
+             cider/reporter]}
 ```
 
 ### Running tests from a repl
