@@ -1,5 +1,9 @@
 # Changes
 
+## 0.5.0: 2020-10-04
+
+* Add support for CIDER test reporting.
+
 ## 0.4.2: 2019-02-22
 
 * Supply a default test selector if it is missing from config.
