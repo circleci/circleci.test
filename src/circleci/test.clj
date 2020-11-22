@@ -1,8 +1,10 @@
 (ns circleci.test
   (:require [circleci.test.report :as report]
             [clojure.test :as test]
+            [clojure.string :as cs]
             [clojure.java.io :as io])
-  (:import (clojure.lang LineNumberingPushbackReader)))
+  (:import (clojure.lang LineNumberingPushbackReader)
+           java.io.FileNotFoundException))
 
 ;; Once fixtures should be run exactly once regardless of which entry-point
 ;; into circleci.test is used
@@ -15,14 +17,10 @@
 ;; This means test-var must attempt to run once fixtures each time it is
 ;; invoked.
 ;;
-;; To avoid constantly recalculating once fixtures we map the ns to a
-;; fixture-generating function.
-;; When running once fixtures we look up the fixture generating fn and invoke
-;; it to produce the once-fixtures-fn.
-;; Before invoking the generated once-fixtures-fn we bind a new mapping from
-;; the ns the test var belongs to to a fixture generating fn that produces a
-;; dummy once-fixture.
-(def ^:dynamic *once-fixtures* {})
+;; Keep track of whether for you are inside a form which has already
+;; run the fixture you want. That is, no chain of function calls
+;; should have a fixture twice.
+(def ^:dynamic *fixtures* {})
 
 (def ^:private default-config {:test-results-dir "test-results"
                                :reporters [report/clojure-test-reporter]})
@@ -34,27 +32,31 @@
                  {})]
     (merge default-config config)))
 
-(defn- make-once-fixture-fn
-  [ns]
-  (test/join-fixtures (::test/once-fixtures (meta ns))))
-
-(defn- once-fixtures
+(defn- make-once-fixture
   [ns]
   (fn [f]
-    (let [make-once-fixtures (get *once-fixtures* ns make-once-fixture-fn)]
-      (binding [*once-fixtures* (assoc *once-fixtures*
-                                       ns
-                                       (fn [_]
-                                        (fn [x] (x))))]
-        ((make-once-fixtures ns) f)))))
-
-(def ^:private ^:dynamic *inside-global-fixtures?* false)
-
-(defn make-global-fixture [{:keys [global-fixture]}]
-  (fn [f]
-    (if (or *inside-global-fixtures?* (not global-fixture))
+    (if (get-in *fixtures* [:once ns])
       (f)
-      (binding [*inside-global-fixtures?* true]
+      (binding [*fixtures* (assoc-in *fixtures* [:once ns] true)]
+        (let [fix-fn (test/join-fixtures (::test/once-fixtures (meta ns)))]
+          (fix-fn f))))))
+
+(defn- make-each-fixture
+  [ns]
+  (fn [f]
+    (if (get-in *fixtures* [:each ns])
+      (f)
+      (binding [*fixtures* (assoc-in *fixtures* [:each ns] true)]
+        (let [fix-fn (test/join-fixtures (::test/each-fixtures (meta ns)))]
+          (fix-fn f))))))
+
+(defn make-global-fixture
+  [{:keys [global-fixture]
+    :or {global-fixture (fn [f] (f))}}]
+  (fn [f]
+    (if (get *fixtures* :global)
+      (f)
+      (binding [*fixtures* (assoc *fixtures* :global true)]
         (global-fixture f)))))
 
 ;; Running tests; low-level fns
@@ -79,8 +81,8 @@
   (assert (var? v) (format "v must be a var. got %s" (class v)))
   (let [ns (-> v meta :ns)
         global-fixture-fn (make-global-fixture config)
-        once-fixture-fn (once-fixtures ns)
-        each-fixture-fn (test/join-fixtures (::test/each-fixtures (meta ns)))]
+        once-fixture-fn (make-once-fixture ns)
+        each-fixture-fn (make-each-fixture ns)]
     (when (:test (meta v))
       (binding [test/*testing-vars* (conj test/*testing-vars* v)]
         (let [start-time (System/nanoTime)]
@@ -90,6 +92,27 @@
                (once-fixture-fn
                 (fn []
                   (each-fixture-fn (fn [] (test* v)))))))
+            (catch Exception e
+              (test/do-report {:type :error,
+                               :message "Uncaught exception, not in assertion."
+                               :expected nil, :actual e}))
+            (finally
+              (let [stop-time (System/nanoTime)
+                    elapsed (-> stop-time (- start-time) nanos->seconds)]
+                (test/do-report {:type :end-test-var,
+                                 :var v
+                                 :elapsed elapsed})))))))))
+
+
+(defn- test-var-with-ns-hook*
+  [config v]
+  (assert (var? v) (format "v must be a var. got %s" (class v)))
+  (let [global-fixture-fn (make-global-fixture config)]
+    (when (:test (meta v))
+      (binding [test/*testing-vars* (conj test/*testing-vars* v)]
+        (let [start-time (System/nanoTime)]
+          (try
+            (global-fixture-fn (fn [] (test* v)))
             (catch Exception e
               (test/do-report {:type :error,
                                :message "Uncaught exception, not in assertion."
@@ -125,9 +148,37 @@
         :when (and (:test (meta v)) (selector (meta v)))]
     v))
 
+
 (defn- test-all-vars [config ns selector]
-  (doseq [v (get-all-vars config ns selector)]
+  (doseq [v (sort-by str (get-all-vars config ns selector))]
     (test-var v config)))
+
+
+(defn copy-meta
+  [v from-key to-key]
+  (if-let [x (get (meta v) from-key)]
+    (alter-meta! v #(-> % (assoc to-key x) (dissoc from-key)))))
+
+
+(defmacro select-test-ns-hook
+  "When test-ns-hook is used, select vars based on the selector but
+  don't run once and each fixtures."
+  [ns-hook var-selector config]
+  `(let [ns# (-> ~ns-hook meta :ns)
+         vars# (vals (ns-interns ns#))]
+     (try
+       (doseq [a-var# vars#]
+         (when (and (:test (meta a-var#))
+                    (not (~var-selector a-var#)))
+           (copy-meta a-var# :test ::skipped-test)))
+
+       (binding [test/test-var (partial test-var-with-ns-hook* ~config)]
+         ((var-get ~ns-hook)))
+
+       (finally
+         (doseq [a-var# vars#]
+           (copy-meta a-var# ::skipped-test :test))))))
+
 
 (defn test-ns
   "The entry-point into circleci.test for running all tests in a namespace.
@@ -146,34 +197,75 @@
              test/report report/report
              report/*reporters* (get-reporters config)]
      (let [ns-obj (the-ns ns)
-           run-once-fixture? (seq (get-all-vars config ns selector))
+           ns-hook (find-var (symbol (str (ns-name ns-obj))
+                                     "test-ns-hook"))
+           run-once-fixture? (when-not ns-hook
+                               (seq (get-all-vars config ns selector)))
            global-fixture-fn (make-global-fixture config)
            once-fixture-fn (if run-once-fixture?
-                             (once-fixtures ns-obj)
-                             (fn [f] ((make-once-fixture-fn ns) f)))]
+                             (make-once-fixture ns-obj)
+                             (fn [f] (f)))]
        (try
          (global-fixture-fn
-           (fn []
-             (once-fixture-fn
-               (fn []
-                 (test/do-report {:type :begin-test-ns, :ns ns-obj})
-                 ;; If the namespace has a test-ns-hook function, call that:
-                 (if-let [v (find-var (symbol (str (ns-name ns-obj))
-                                              "test-ns-hook"))]
-                   ((var-get v))
-                   ;; Otherwise, just test every var in the namespace.
-                   (test-all-vars config ns-obj selector))))))
+          (fn []
+            (once-fixture-fn
+             (fn []
+               (test/do-report {:type :begin-test-ns, :ns ns-obj})
+               ;; If the namespace has a test-ns-hook function, call that:
+               (if ns-hook
+                 (select-test-ns-hook ns-hook
+                                      (fn [a-var] (-> a-var meta selector))
+                                      config)
+
+                 ;; Otherwise, just test every var in the namespace.
+                 (test-all-vars config ns-obj selector))))))
          (catch Exception e
            (binding [test/*testing-vars*
                      (conj test/*testing-vars* (with-meta 'test
-                                                          {:name "Exception thrown from test fixture"
-                                                           :ns ns-obj}))]
+                                                 {:name "Exception thrown from test fixture"
+                                                  :ns ns-obj}))]
              (test/do-report {:type :error,
                               :message "Exception thrown from test fixture."
                               :expected nil, :actual e})))
          (finally
            (test/do-report {:type :end-test-ns, :ns ns-obj}))))
      @test/*report-counters*)))
+
+(defn test-nses
+  [nses selector config]
+  (for [n (sort-by str (distinct nses))]
+    (test-ns n selector config)))
+
+
+
+(defn test-selected-var
+  [v selector config]
+  (binding [test/*report-counters* (ref test/*initial-report-counters*)
+            test/report report/report
+            report/*reporters* (get-reporters config)]
+    (let [n (-> v meta :ns)]
+      (if-let [ns-hook (find-var (symbol (str (ns-name n))
+                                         "test-ns-hook"))]
+        (select-test-ns-hook ns-hook
+                             (fn [a-var] (and (= a-var v) (-> a-var meta selector)))
+                             config)
+
+        (when (-> v meta selector)
+          (binding [test/test-var (partial test-var* config)]
+            (test-var* config v)))))
+    @test/*report-counters*))
+
+
+(defn test-vars-in-ns-groups
+  [vars selector config]
+  (let [ns-groups (group-by (comp :ns meta) (distinct vars))
+        reports (for [ns (sort-by str (keys ns-groups))]
+                  (try
+                    (test/do-report {:type :begin-test-ns, :ns ns})
+                    (for [v (sort-by str (get ns-groups ns))]
+                      (test-selected-var v selector config))
+                    (finally (test/do-report {:type :end-test-ns, :ns ns}))))]
+    (apply concat reports)))
 
 
 ;; Running tests; high-level fns
@@ -183,15 +275,24 @@
   Defaults to current namespace if none given.  Returns a map
   summarizing test results."
   ([selector] (run-selected-tests selector [*ns*]))
-  ([selector nses] (run-selected-tests selector nses (read-config!)))
-  ([selector nses config]
-   (let [global-fixture-fn (make-global-fixture config)
-         summary (global-fixture-fn
-                  #(assoc (apply merge-with + (for [n nses]
-                                                (test-ns n selector config)))
-                          :type :summary))]
-     (test/do-report summary)
-     summary)))
+  ([selector nses] (run-selected-tests selector nses []))
+  ([selector nses vars] (run-selected-tests selector nses vars (read-config!)))
+  ([selector nses vars config]
+   (if (and (empty? nses) (empty? vars))
+     (let [summary {:type :summary :pass 0 :fail 0 :error 0 :test 0}]
+       (test/do-report summary)
+       summary)
+
+     (let [global-fixture-fn (make-global-fixture config)
+           summary (global-fixture-fn
+                    #(assoc (apply merge-with + {:pass 0 :fail 0 :error 0 :test 0}
+                                   (into
+                                    (test-nses nses selector config)
+                                    (test-vars-in-ns-groups vars selector config)))
+                            :type :summary))]
+
+       (test/do-report summary)
+       summary))))
 
 (defn run-tests
   "Runs all tests in the given namespaces; prints results.
@@ -242,12 +343,36 @@
          summary (run-selected-tests selector nses)]
      (System/exit (+ (:error summary) (:fail summary))))))
 
+
+(defn segregate-nses-and-vars
+  "Given a list of namespaces and vars, separates them into namespaces
+  which are to be tested fully and individual vars. Also loads all
+  required namespaces."
+  [nses-or-vars]
+  (let [{nses false vars true} (group-by #(cs/includes? (str %) "/") nses-or-vars)
+        nses-set (set nses)
+        nses-from-vars (mapv #(symbol (first (cs/split (str %) #"/"))) vars)
+        test-nses (distinct (into nses nses-from-vars))
+        whole-nses (filterv (fn [ns]
+                              (try (require :reload ns)
+                                   (nses-set ns)
+                                   (catch FileNotFoundException _)))
+                            test-nses)
+        extra-vars (keep (fn [v]
+                           (try
+                             (when-let [v (find-var (symbol v))]
+                               (when-not (-> v meta :ns ns-name nses-set)
+                                 v))
+                             (catch IllegalArgumentException _)))
+                         vars)]
+    [whole-nses extra-vars]))
+
 (defn -main
   [& raw-args]
   (when (empty? raw-args)
     (throw (ex-info "Must pass a list of namespaces to test" {})))
   (let [config (read-config!)
-        [selector & nses] (read-args config raw-args)
-        _ (apply require :reload nses)
-        summary (run-selected-tests selector nses config)]
+        [selector & nses-or-vars] (read-args config raw-args)
+        [nses vars] (segregate-nses-and-vars nses-or-vars)
+        summary (run-selected-tests selector nses vars config)]
     (System/exit (+ (:error summary) (:fail summary)))))
