@@ -1,0 +1,19 @@
+name: Clojure CI
+
+on:
+  push:
+    branches: [ github-workflow/mapbox-gl-draw ]
+  pull_request:
+    branches: [ github-workflow/mapbox-gl-draw ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: lein deps
+    - name: Run tests
+      run: lein test
