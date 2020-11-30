@@ -52,7 +52,7 @@
       (do-report {:type :end-test-var, :var "Var"}))
 
     (is (= {:default        [{:type :default}]
-            :pass           [{:type :pass, :message "msg", :expected "expected", :actual "actual"}]
+            :passhttps://eol.jsc.nasa.gov/ESRS/HDEV/           [{:type :pass, :message "msg", :expected "expected", :actual "actual"}]
             :fail           [{:file "test_report.clj", :line 46, :type :fail, :message "msg", :expected "expected", :actual "actual"}],
             :error          [{:file "core.clj", :line 4617, :type :error, :message "msg", :expected "expected", :actual exception}]
             :summary        [{:type :summary, :pass 1, :fail 2, :error 3}]
