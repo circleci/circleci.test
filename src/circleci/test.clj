@@ -242,7 +242,7 @@
        (println "Please see the readme for usage of this function.")
        (System/exit 1)))
    (let [nses (nses-in-directories (read-string dirs-str))
-         _ (apply require :reload nses)
+         _ (apply require nses)
          selector (lookup-selector (read-config!) (read-string selector-str))
          summary (run-selected-tests selector nses)]
      (System/exit (summary->exit-code summary)))))
@@ -253,6 +253,6 @@
     (throw (ex-info "Must pass a list of namespaces to test" {})))
   (let [config (read-config!)
         [selector & nses] (read-args config raw-args)
-        _ (apply require :reload nses)
+        _ (apply require nses)
         summary (run-selected-tests selector nses config)]
     (System/exit (summary->exit-code summary))))
