@@ -12,6 +12,7 @@ jobs:
           key: v1-jars-
 
       - run: lein test
+      - run: lein with-profile +alpha-data-xml test
 
       - cache-save:
           key: v1-jars-{{ checksum "project.clj" }}

@@ -2,8 +2,10 @@
   "Junit reporter for circleci.test"
   (:require [clojure.data.xml :as xml]
             [clojure.java.io :as io]
-            [circleci.test.report :as report])
-  (:import clojure.data.xml.Element))
+            [circleci.test.report :as report]))
+
+(defn- element? [el]
+  (and (map? el) (some? (:tag el))))
 
 (defn- stacktrace->string
   "given an exception, returns the result of printStackTrace as a string"
@@ -38,8 +40,8 @@
 
 (defn- suite-xml
   [m testcases]
-  {:pre [(class testcases) (every? #(instance? Element %) testcases)]}
-  (apply xml/element :testsuite {:name (-> m :ns (.name))
+  {:pre [(class testcases) (every? element? testcases)]}
+  (apply xml/element :testsuite {:name (-> m :ns ns-name str)
                                  :errors (count-errors testcases)
                                  :tests (count testcases)
                                  :failures (count-failures testcases)
@@ -48,7 +50,7 @@
 
 (defn- test-name
   [v]
-  (-> v meta :name))
+  (-> v meta :name str))
 
 (defn- testcase-xml
   "Generate a testcase XML element. Takes the map from a (clojure.test/do-report :end-test-var), and a seq of failure/error reports "
